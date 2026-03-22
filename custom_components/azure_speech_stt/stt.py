@@ -40,13 +40,7 @@ from .correction_config import CorrectionConfig
 from .models import AzureSTTRuntimeData, TranscriptionStats
 from .phrase_builder import PhraseBuilder
 from .stt_corrector import DiagnosticResult, SpeechCorrector
-from .stt_corrector.matchers import DefaultMatcher, PhoneticMatcher, PinyinMatcher
-
-# Locales that should use PinyinMatcher for phonetic similarity.
-# Only standard Mandarin locales are supported — pypinyin is based on
-# Mandarin phonology and does not produce accurate results for Cantonese
-# (yue-/zh-HK) or Wu (wuu-) dialects.
-_MANDARIN_LOCALE_PREFIXES = ("zh-CN", "zh-TW")
+from .stt_corrector.registry import MatcherRegistry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -484,21 +478,11 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
 
         Args:
             locale: BCP-47 locale code. Determines which phonetic matchers
-                    to use (PinyinMatcher for Mandarin, DefaultMatcher for others).
+                    to use via the matcher registry.
             cfg: Pre-built config. If None, reads from options.
         """
         if cfg is None:
             cfg = CorrectionConfig.from_options(self._options)
-
-        # Select matchers based on locale.
-        is_non_chinese = locale is not None and not any(
-            locale.startswith(p) for p in _MANDARIN_LOCALE_PREFIXES
-        )
-        matchers: list[PhoneticMatcher] = (
-            [DefaultMatcher()]
-            if is_non_chinese
-            else [PinyinMatcher(), DefaultMatcher()]
-        )
 
         return SpeechCorrector(
             known_phrases=[],
@@ -506,6 +490,6 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             fuzzy_threshold=cfg.fuzzy_threshold,
             enable_custom_replacements=cfg.enable_custom_replacements,
             enable_fuzzy_matching=cfg.enable_fuzzy_matching,
-            matchers=matchers,
+            matchers=MatcherRegistry.get_matchers(locale),
             exclusions=cfg.custom_exclusions or None,
         )

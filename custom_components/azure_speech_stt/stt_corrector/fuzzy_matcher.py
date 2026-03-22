@@ -7,7 +7,7 @@ for the PhoneticMatcher base class and built-in implementations.
 
 from __future__ import annotations
 
-from .matchers import DefaultMatcher, PhoneticMatcher, PinyinMatcher
+from .matchers import PhoneticMatcher
 from .types import CorrectionCandidate, CorrectionChange, CorrectionMethod
 
 # Minimum phrase length to consider for matching
@@ -18,7 +18,7 @@ class FuzzyMatcher:
     """Fuzzy text matcher with pluggable phonetic matchers.
 
     Tries matchers in order and uses the first one that supports the input
-    text. Defaults to PinyinMatcher (CJK) + DefaultMatcher (fallback).
+    text. When no matchers are provided, defaults to all registered matchers.
     """
 
     def __init__(
@@ -34,13 +34,17 @@ class FuzzyMatcher:
             known_phrases: List of correct phrases to match against.
             threshold: Minimum similarity ratio to accept a match (0.0-1.0).
             matchers: Ordered list of phonetic matchers. First match wins.
-                      Defaults to [PinyinMatcher(), DefaultMatcher()].
+                      Defaults to all registered matchers when not provided.
             exclusions: Segments to never correct (skip fuzzy matching).
         """
+        if matchers is None:
+            from .registry import MatcherRegistry
+
+            matchers = MatcherRegistry.get_matchers(None)
         self._threshold = threshold
         self._phrases: list[str] = []
         self._set_phrases(known_phrases)
-        self._matchers = matchers or [PinyinMatcher(), DefaultMatcher()]
+        self._matchers = matchers
         self._exclusions: set[str] = set(exclusions or [])
 
     def _set_phrases(self, phrases: list[str]) -> None:

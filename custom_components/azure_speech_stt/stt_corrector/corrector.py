@@ -39,7 +39,7 @@ class SpeechCorrector:
             enable_custom_replacements: Toggle custom replacement stage.
             enable_fuzzy_matching: Toggle fuzzy/pinyin matching stage.
             matchers: Ordered list of phonetic matchers for fuzzy matching.
-                      Defaults to [PinyinMatcher(), DefaultMatcher()].
+                      Defaults to all registered matchers when not provided.
             exclusions: Segments to never correct via fuzzy matching.
         """
         # Stage flags

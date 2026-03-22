@@ -5,9 +5,9 @@ generate sliding windows for a specific language family. The FuzzyMatcher
 tries matchers in order and uses the first one that supports the input text.
 
 To add a new language:
-    1. Subclass PhoneticMatcher
+    1. Create a new module with a PhoneticMatcher subclass
     2. Implement supports(), similarity(), and windows()
-    3. Pass the matcher to FuzzyMatcher or SpeechCorrector via the matchers parameter
+    3. Register the matcher in registry.py — no other file changes required
 """
 
 from __future__ import annotations
@@ -39,40 +39,6 @@ class PhoneticMatcher(ABC):
         Returns:
             List of (start, end) character index tuples.
         """
-
-
-_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
-
-
-class PinyinMatcher(PhoneticMatcher):
-    """Chinese phonetic matching using pypinyin.
-
-    Handles CJK text with character-level sliding windows and
-    pinyin-based similarity comparison. Only activates for text
-    containing CJK characters.
-
-    Note: Locale-based matcher selection at the entity level controls
-    whether PinyinMatcher is included at all. The supports() check
-    provides a second guard for mixed-language text.
-    """
-
-    def supports(self, text: str) -> bool:
-        return bool(_CJK_RE.search(text))
-
-    def similarity(self, text_a: str, text_b: str) -> float:
-        from .pinyin_matcher import pinyin_similarity
-
-        return pinyin_similarity(text_a, text_b)
-
-    def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
-        phrase_len = len(phrase)
-        result: list[tuple[int, int]] = []
-        for window_size in range(max(1, phrase_len - 1), phrase_len + 2):
-            for start in range(max(0, len(text) - window_size + 1)):
-                end = start + window_size
-                if end <= len(text):
-                    result.append((start, end))
-        return result
 
 
 class DefaultMatcher(PhoneticMatcher):

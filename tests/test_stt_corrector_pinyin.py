@@ -1,6 +1,6 @@
-"""Tests for pinyin_matcher module."""
+"""Tests for Mandarin phonetic matching (languages/mandarin module)."""
 
-from custom_components.azure_speech_stt.stt_corrector.pinyin_matcher import (
+from custom_components.azure_speech_stt.stt_corrector.languages.mandarin import (
     pinyin_similarity,
 )
 

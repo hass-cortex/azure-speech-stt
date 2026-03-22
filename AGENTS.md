@@ -32,11 +32,13 @@ custom_components/azure_speech_stt/
 ├── phrase_builder.py    # Collects names from HA registries (configurable per-source)
 ├── const.py             # Constants, locales, regions, endpoints
 ├── stt_corrector/
-│   ├── corrector.py     # SpeechCorrector — orchestrates correction pipeline
-│   ├── fuzzy_matcher.py # FuzzyMatcher — sliding window + similarity scoring
-│   ├── matchers.py      # PhoneticMatcher ABC + DefaultMatcher
-│   ├── pinyin_matcher.py# PinyinMatcher — Chinese phonetic similarity
-│   └── types.py         # CorrectionMethod, CorrectionChange, CorrectionResult, etc.
+│   ├── corrector.py       # SpeechCorrector — orchestrates correction pipeline
+│   ├── fuzzy_matcher.py   # FuzzyMatcher — sliding window + similarity scoring
+│   ├── matchers.py        # PhoneticMatcher ABC + DefaultMatcher
+│   ├── languages/
+│   │   └── mandarin.py    # PinyinMatcher + pinyin phonetic similarity
+│   ├── registry.py        # Locale-to-matcher mapping (add new languages here)
+│   └── types.py           # CorrectionMethod, CorrectionChange, CorrectionResult, etc.
 ├── services.yaml        # Service UI definitions
 ├── strings.json         # UI strings (source of truth)
 └── translations/en.json # English translations (must match strings.json)
@@ -48,7 +50,7 @@ custom_components/azure_speech_stt/
 - **Entity public API**: `last_recognition`, `async_test_correction()`, `async_get_phrases()` — services use these instead of accessing private attributes.
 - **runtime_data**: Uses typed `AzureSTTRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_stt_entity()` to retrieve the STT entity.
 - **Sensor push updates**: STT entity calls `_notify_sensors()` after each transcription. Sensors use `RestoreSensor` for state persistence across restarts.
-- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Add new language matchers by subclassing — no core changes needed.
+- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Add new language matchers by subclassing in `stt_corrector/languages/` and registering in `registry.py` — no core changes needed. See [Adding a New Language Matcher](#adding-a-new-language-matcher).
 - **PhraseBuilder**: Event-driven cache invalidation via entity/area/device/floor registry event subscriptions. Auto-collect sources (floors, areas, devices, exposed entities) are independently configurable via `CONF_AUTO_COLLECT_SOURCES`. Phrases are shared by both Pre-recognition Hints (API phraseList) and Similarity Matching (post-recognition correction).
 
 ## Development Commands
@@ -166,6 +168,64 @@ HACS uses `AwesomeVersion` for comparison. Tag format follows commitizen's `tag_
 | Beta | `1.1.0b1` | `1.1.0b1` |
 
 HACS only checks GitHub's `prerelease` boolean flag — tag naming does not affect channel routing.
+
+## Adding a New Language Matcher
+
+To add phonetic correction for a new language, only two files need changes:
+
+### Step 1: Create the matcher (`stt_corrector/languages/<language>.py`)
+
+Subclass `PhoneticMatcher` and implement three methods:
+
+```python
+"""<Language> phonetic matching for STT correction."""
+
+from __future__ import annotations
+
+from ..matchers import PhoneticMatcher
+
+
+class <Language>Matcher(PhoneticMatcher):
+
+    def supports(self, text: str) -> bool:
+        """Return True if text contains characters this matcher handles."""
+
+    def similarity(self, text_a: str, text_b: str) -> float:
+        """Compute phonetic similarity (0.0–1.0) between two strings."""
+
+    def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
+        """Generate (start, end) sliding window positions for matching."""
+```
+
+| Method | Purpose | Example (Mandarin) |
+|--------|---------|-------------------|
+| `supports()` | Detect if text belongs to this language | CJK unicode range check |
+| `similarity()` | Phonetic similarity score | Pinyin syllable comparison |
+| `windows()` | Sliding window strategy | Character-level for CJK, word-level for alphabetic |
+
+See `languages/mandarin.py` as a reference implementation.
+
+### Step 2: Register in `stt_corrector/registry.py`
+
+Add one entry to `MatcherRegistry._language_matchers`:
+
+```python
+from .languages.<language> import <Language>Matcher
+
+class MatcherRegistry:
+    _language_matchers: list[tuple[tuple[str, ...], type[PhoneticMatcher]]] = [
+        (("zh-CN", "zh-TW"), PinyinMatcher),
+        (("ja",), <Language>Matcher),  # <-- add here
+    ]
+```
+
+The tuple contains BCP-47 locale prefixes that activate this matcher. `DefaultMatcher` is always appended as fallback — do not add it here.
+
+### What NOT to change
+
+- `matchers.py` — ABC and DefaultMatcher only
+- `corrector.py`, `fuzzy_matcher.py` — pipeline core, language-agnostic
+- `stt.py` — delegates to registry, no matcher knowledge
 
 ## Do NOT
 

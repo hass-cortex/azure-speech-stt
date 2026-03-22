@@ -2,7 +2,8 @@
 
 from .corrector import SpeechCorrector
 from .fuzzy_matcher import FuzzyMatcher
-from .matchers import DefaultMatcher, PhoneticMatcher, PinyinMatcher
+from .languages.mandarin import PinyinMatcher
+from .matchers import DefaultMatcher, PhoneticMatcher
 from .types import (
     CorrectionCandidate,
     CorrectionChange,

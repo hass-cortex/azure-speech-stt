@@ -1,7 +1,8 @@
-"""Pinyin-based phonetic matching for Chinese STT text correction.
+"""Chinese (Mandarin) phonetic matching for STT text correction.
 
-Uses syllable-level comparison with tone separation and similar-initial
-boosting, instead of flat string comparison via SequenceMatcher.
+Combines CJK character detection with pinyin-based syllable-level comparison.
+Uses tone separation and similar-initial boosting for acoustically similar
+Mandarin syllables, instead of flat string comparison via SequenceMatcher.
 """
 
 from __future__ import annotations
@@ -10,6 +11,12 @@ import re
 from itertools import zip_longest
 
 from pypinyin import Style, lazy_pinyin
+
+from ..matchers import PhoneticMatcher
+
+# ---------------------------------------------------------------------------
+# Pinyin similarity helpers
+# ---------------------------------------------------------------------------
 
 # Regex to split a TONE3 pinyin syllable into base + tone number
 _TONE_RE = re.compile(r"^(.+?)(\d)?$")
@@ -150,3 +157,39 @@ def pinyin_similarity(text_a: str, text_b: str) -> float:
         total += _syllable_similarity(syl_a, syl_b)
 
     return total / max_len
+
+
+# ---------------------------------------------------------------------------
+# PinyinMatcher — PhoneticMatcher subclass for CJK text
+# ---------------------------------------------------------------------------
+
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+
+
+class PinyinMatcher(PhoneticMatcher):
+    """Chinese phonetic matching using pypinyin.
+
+    Handles CJK text with character-level sliding windows and
+    pinyin-based similarity comparison. Only activates for text
+    containing CJK characters.
+
+    Note: Locale-based matcher selection at the entity level controls
+    whether PinyinMatcher is included at all. The supports() check
+    provides a second guard for mixed-language text.
+    """
+
+    def supports(self, text: str) -> bool:
+        return bool(_CJK_RE.search(text))
+
+    def similarity(self, text_a: str, text_b: str) -> float:
+        return pinyin_similarity(text_a, text_b)
+
+    def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
+        phrase_len = len(phrase)
+        result: list[tuple[int, int]] = []
+        for window_size in range(max(1, phrase_len - 1), phrase_len + 2):
+            for start in range(max(0, len(text) - window_size + 1)):
+                end = start + window_size
+                if end <= len(text):
+                    result.append((start, end))
+        return result
