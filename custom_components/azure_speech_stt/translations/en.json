@@ -1,0 +1,243 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Azure Speech-to-Text",
+        "description": "Configure your Azure Speech service credentials.",
+        "data": {
+          "speech_key": "Speech Key",
+          "speech_region": "Region",
+          "display_name": "Display Name"
+        },
+        "data_description": {
+          "display_name": "Optional custom name for this instance (defaults to 'Azure STT (region)')"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Azure Speech-to-Text",
+        "description": "Your Azure Speech API key is invalid or expired. Please enter a new key.",
+        "data": {
+          "speech_key": "Speech Key"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Azure Speech-to-Text",
+        "description": "Update your Azure Speech service credentials.",
+        "data": {
+          "speech_key": "Speech Key",
+          "speech_region": "Region"
+        }
+      }
+    },
+    "error": {
+      "invalid_key": "Invalid Speech Key or Region. Could not authenticate.",
+      "cannot_connect": "Cannot connect to Azure Speech service."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "description": "Configure Speech API and correction pipeline settings.",
+        "data": {
+          "api_modes": "Speech API",
+          "correction_stages": "Correction Pipeline"
+        },
+        "data_description": {
+          "api_modes": "Select which Azure Speech APIs to use. Fast Transcription supports most locales and phrase hints for improved accuracy. Real-time has lower latency and supports locales not available in Fast Transcription (e.g., Cantonese, Taiwanese Mandarin). When both are selected, Fast Transcription is preferred with automatic fallback.",
+          "correction_stages": "Select which correction stages to apply after speech recognition. Deselect all to use Azure's raw transcription directly."
+        },
+        "sections": {
+          "auto_collect": {
+            "name": "Auto-collect Phrases",
+            "data": {
+              "auto_collect_sources": "Sources"
+            },
+            "data_description": {
+              "auto_collect_sources": "Automatically collect names from Home Assistant registries. Used by Pre-recognition Hints (API phrase hints) and Similarity Matching (post-recognition correction)."
+            }
+          },
+          "stage_1": {
+            "name": "Pre-recognition Hints",
+            "data": {
+              "custom_phrases": "Custom recognition hints"
+            },
+            "data_description": {
+              "custom_phrases": "Add extra domain-specific words or phrases to improve recognition accuracy."
+            }
+          },
+          "stage_2": {
+            "name": "Custom Replacements",
+            "data": {
+              "custom_replacements": "Replacement rules"
+            },
+            "data_description": {
+              "custom_replacements": "Format: wrong=correct. Applied after speech recognition, before similarity matching."
+            }
+          },
+          "stage_3": {
+            "name": "Similarity Matching",
+            "data": {
+              "fuzzy_threshold": "Matching sensitivity (lower = more aggressive)",
+              "custom_exclusions": "Exclusions"
+            },
+            "data_description": {
+              "fuzzy_threshold": "Minimum similarity score (0.5–1.0) required to auto-correct. Lower = more aggressive, higher = more conservative. Default: 0.80.",
+              "custom_exclusions": "Words or segments that should never be corrected. Use when a correct word is being incorrectly replaced."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_result": {
+        "state": {
+          "success": "Success",
+          "no_speech": "No speech",
+          "api_error": "API error"
+        }
+      },
+      "last_api_used": {
+        "name": "Last API used",
+        "state": {
+          "fast_transcription": "Fast Transcription API",
+          "realtime": "Real-time API"
+        }
+      }
+    }
+  },
+  "services": {
+    "transcribe": {
+      "name": "Transcribe",
+      "description": "Transcribe audio data with Azure STT and correction.",
+      "fields": {
+        "audio_data": {
+          "name": "Audio data",
+          "description": "Base64-encoded WAV audio (PCM 16kHz mono 16-bit)."
+        },
+        "format": {
+          "name": "Format",
+          "description": "Audio format."
+        },
+        "codec": {
+          "name": "Codec",
+          "description": "Audio codec."
+        },
+        "language": {
+          "name": "Language",
+          "description": "BCP-47 language code."
+        },
+        "apply_correction": {
+          "name": "Apply correction",
+          "description": "Apply post-recognition correction pipeline."
+        }
+      }
+    },
+    "add_phrases": {
+      "name": "Add phrases",
+      "description": "Add phrases to the recognition hints list.",
+      "fields": {
+        "phrases": {
+          "name": "Phrases",
+          "description": "List of phrases to add."
+        }
+      }
+    },
+    "remove_phrases": {
+      "name": "Remove phrases",
+      "description": "Remove phrases from the recognition hints list.",
+      "fields": {
+        "phrases": {
+          "name": "Phrases",
+          "description": "List of phrases to remove."
+        }
+      }
+    },
+    "add_replacements": {
+      "name": "Add replacements",
+      "description": "Add or update custom replacement rules.",
+      "fields": {
+        "replacements": {
+          "name": "Replacements",
+          "description": "Dictionary of wrong\u2192correct replacement pairs."
+        }
+      }
+    },
+    "remove_replacements": {
+      "name": "Remove replacements",
+      "description": "Remove custom replacement rules by key.",
+      "fields": {
+        "keys": {
+          "name": "Keys",
+          "description": "List of replacement keys (wrong text) to remove."
+        }
+      }
+    },
+    "get_correction_config": {
+      "name": "Get correction config",
+      "description": "Get the current correction configuration (phrases, replacements, settings)."
+    },
+    "set_correction_config": {
+      "name": "Set correction config",
+      "description": "Import correction configuration (from get_correction_config output).",
+      "fields": {
+        "custom_phrases": {
+          "name": "Custom phrases",
+          "description": "List of recognition hint phrases."
+        },
+        "custom_replacements": {
+          "name": "Custom replacements",
+          "description": "Dictionary of wrong\u2192correct replacement pairs."
+        },
+        "enable_custom_replacements": {
+          "name": "Enable custom replacements",
+          "description": "Enable custom replacement rules."
+        },
+        "enable_fuzzy_matching": {
+          "name": "Enable fuzzy matching",
+          "description": "Enable similarity matching."
+        },
+        "fuzzy_threshold": {
+          "name": "Fuzzy threshold",
+          "description": "Matching sensitivity (0.5\u20131.0)."
+        },
+        "custom_exclusions": {
+          "name": "Custom exclusions",
+          "description": "List of segments to never correct."
+        }
+      }
+    },
+    "add_exclusions": {
+      "name": "Add exclusions",
+      "description": "Add segments to the correction exclusion list.",
+      "fields": {
+        "exclusions": {
+          "name": "Exclusions",
+          "description": "List of segments to exclude from correction."
+        }
+      }
+    },
+    "remove_exclusions": {
+      "name": "Remove exclusions",
+      "description": "Remove segments from the correction exclusion list.",
+      "fields": {
+        "exclusions": {
+          "name": "Exclusions",
+          "description": "List of segments to remove from exclusion list."
+        }
+      }
+    },
+    "test_correction": {
+      "name": "Test correction",
+      "description": "Test correction pipeline with diagnostic output.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "Text to run through the correction pipeline."
+        }
+      }
+    }
+  }
+}
