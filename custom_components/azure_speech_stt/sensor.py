@@ -59,15 +59,6 @@ SENSOR_DESCRIPTIONS: tuple[AzureSTTSensorDescription, ...] = (
         update_fn=lambda cur, s: int(cur or 0) + (1 if s.api_error else 0),
     ),
     AzureSTTSensorDescription(
-        key="corrections_applied",
-        translation_key="corrections_applied",
-        name="Corrections applied",
-        icon="mdi:auto-fix",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        update_fn=lambda cur, s: int(cur or 0) + (1 if s.correction_applied else 0),
-    ),
-    AzureSTTSensorDescription(
         key="last_duration",
         translation_key="last_duration",
         name="Last API duration",
@@ -135,15 +126,6 @@ SENSOR_DESCRIPTIONS: tuple[AzureSTTSensorDescription, ...] = (
         icon="mdi:text",
         update_fn=lambda cur, s: (
             s.raw_text if s.success else (None if not s.api_error else cur)
-        ),
-    ),
-    AzureSTTSensorDescription(
-        key="last_corrected_text",
-        translation_key="last_corrected_text",
-        name="Corrected text",
-        icon="mdi:text-box-check",
-        update_fn=lambda cur, s: (
-            s.corrected_text if s.success else (None if not s.api_error else cur)
         ),
     ),
     AzureSTTSensorDescription(

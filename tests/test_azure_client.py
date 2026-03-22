@@ -219,7 +219,7 @@ class TestTranscribeRealtime:
             status=200,
             json_data={
                 "RecognitionStatus": "Success",
-                "DisplayText": "你好世界",
+                "DisplayText": "hello world",
             },
         )
         session = AsyncMock()
@@ -228,7 +228,7 @@ class TestTranscribeRealtime:
 
         result, api_used = await client.transcribe(b"audio-data", "zh-TW", [])
 
-        assert result == "你好世界"
+        assert result == "hello world"
         assert api_used == "realtime"
         # Verify URL uses the realtime endpoint
         url = session.post.call_args.args[0]
@@ -297,7 +297,7 @@ class TestApiRouting:
         """With both APIs allowed, REALTIME_ONLY locale uses Real-time."""
         post_cm, _ = _mock_response(
             status=200,
-            json_data={"RecognitionStatus": "Success", "DisplayText": "你好"},
+            json_data={"RecognitionStatus": "Success", "DisplayText": "hello"},
         )
         session = AsyncMock()
         session.post = MagicMock(return_value=post_cm)
@@ -310,7 +310,7 @@ class TestApiRouting:
             allowed_apis=["fast_transcription", "realtime"],
         )
 
-        assert result == "你好"
+        assert result == "hello"
         assert api_used == "realtime"
         url = session.post.call_args.args[0]
         assert "stt.speech.microsoft.com" in url

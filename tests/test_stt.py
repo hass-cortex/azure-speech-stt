@@ -194,24 +194,23 @@ class TestAsyncProcessAudioStream:
     """Test the main audio processing method."""
 
     @pytest.mark.asyncio
-    async def test_recognized_chinese_text_with_known_phrases(self, mock_hass):
-        """Chinese text should be corrected by pinyin matching when known phrases exist."""
+    async def test_recognized_text_with_phrases(self, mock_hass):
+        """Text should be returned as raw transcription with phrase hints."""
         entry = _make_config_entry(
             options={
-                "locale": "zh-TW",
+                "locale": "en-US",
                 "enable_entity_hints": True,
-                "custom_phrases": ["走廊燈"],
+                "custom_phrases": ["hallway light"],
             }
         )
 
-        # Mock Azure Fast Transcription API response with a homophone error
         mock_post_cm, mock_resp = _mock_aiohttp_response(
             status=200,
             json_data={
-                "combinedPhrases": [{"text": "打開走廊等"}],
+                "combinedPhrases": [{"text": "turn on hallway light"}],
                 "phrases": [
                     {
-                        "text": "打開走廊等",
+                        "text": "turn on hallway light",
                         "confidence": 0.93,
                         "offsetMilliseconds": 0,
                         "durationMilliseconds": 2000,
@@ -222,7 +221,7 @@ class TestAsyncProcessAudioStream:
         mock_session = _make_mock_session(mock_post_cm)
         entity = _create_entity_with_session(mock_hass, entry, mock_session)
 
-        metadata = MagicMock(language="zh-CN")
+        metadata = MagicMock(language="en-US")
         result = await entity.async_process_audio_stream(
             metadata, _audio_stream([b"fake-audio-data"])
         )
@@ -230,14 +229,13 @@ class TestAsyncProcessAudioStream:
         from homeassistant.components.stt import SpeechResultState
 
         assert result.result == SpeechResultState.SUCCESS
-        # "走廊等" should be corrected to "走廊燈" by pinyin matching
-        assert "走廊燈" in result.text
-        # Raw text should be stored on the entity
-        assert entity._last_raw_text == "打開走廊等"
+        # Raw text returned directly from Azure API
+        assert result.text == "turn on hallway light"
+        assert entity._last_raw_text == "turn on hallway light"
 
     @pytest.mark.asyncio
     async def test_recognized_english_text(self, mock_hass):
-        """English text should pass through correction (no homophone rules for English)."""
+        """English text should be returned as-is from Azure API."""
         entry = _make_config_entry(
             options={"locale": "en-US", "enable_entity_hints": True}
         )
@@ -487,19 +485,19 @@ class TestAsyncProcessAudioStream:
         """phraseList should be included in the multipart form data when phrases exist."""
         entry = _make_config_entry(
             options={
-                "locale": "zh-TW",
+                "locale": "en-US",
                 "enable_entity_hints": True,
-                "custom_phrases": ["循環扇", "入口燈"],
+                "custom_phrases": ["living room", "kitchen fan"],
             }
         )
 
         mock_post_cm, mock_resp = _mock_aiohttp_response(
             status=200,
             json_data={
-                "combinedPhrases": [{"text": "打開循環扇"}],
+                "combinedPhrases": [{"text": "turn on kitchen fan"}],
                 "phrases": [
                     {
-                        "text": "打開循環扇",
+                        "text": "turn on kitchen fan",
                         "confidence": 0.95,
                         "offsetMilliseconds": 0,
                         "durationMilliseconds": 2000,
@@ -510,7 +508,7 @@ class TestAsyncProcessAudioStream:
         mock_session = _make_mock_session(mock_post_cm)
         entity = _create_entity_with_session(mock_hass, entry, mock_session)
 
-        metadata = MagicMock(language="zh-CN")
+        metadata = MagicMock(language="en-US")
         result = await entity.async_process_audio_stream(
             metadata, _audio_stream([b"fake-audio-data"])
         )
@@ -518,7 +516,7 @@ class TestAsyncProcessAudioStream:
         from homeassistant.components.stt import SpeechResultState
 
         assert result.result == SpeechResultState.SUCCESS
-        assert "循環扇" in result.text
+        assert "kitchen fan" in result.text
 
         # Verify session.post was called with the correct URL and form data
         mock_session.post.assert_called_once()
@@ -538,8 +536,8 @@ class TestAsyncProcessAudioStream:
         assert headers.get("Ocp-Apim-Subscription-Key") == "test-key"
 
     @pytest.mark.asyncio
-    async def test_last_raw_and_corrected_text_stored(self, mock_hass):
-        """Entity should store both raw and corrected text after recognition."""
+    async def test_last_raw_text_stored(self, mock_hass):
+        """Entity should store raw text after recognition."""
         entry = _make_config_entry(
             options={"locale": "zh-TW", "enable_entity_hints": True}
         )
@@ -556,7 +554,6 @@ class TestAsyncProcessAudioStream:
 
         # Initially None
         assert entity._last_raw_text is None
-        assert entity._last_corrected_text is None
 
         metadata = MagicMock(language="zh-CN")
         await entity.async_process_audio_stream(
@@ -564,8 +561,6 @@ class TestAsyncProcessAudioStream:
         )
 
         assert entity._last_raw_text == "Hello world"
-        # No correction applied (raw == corrected), so _last_corrected_text stays None
-        assert entity._last_corrected_text is None
 
 
 class TestAsyncSetupEntry:
@@ -593,45 +588,6 @@ class TestAsyncSetupEntry:
         from custom_components.azure_speech_stt.stt import AzureSpeechSTTEntity
 
         assert isinstance(entities[0], AzureSpeechSTTEntity)
-
-
-class TestCorrectorConfig:
-    """Test the corrector configuration from options."""
-
-    def test_custom_replacements(self, mock_hass):
-        """Custom replacements should be applied by the corrector."""
-        entry = _make_config_entry(
-            options={"custom_replacements": {"開燈": "turn on light"}}
-        )
-
-        mock_session = AsyncMock()
-        entity = _create_entity_with_session(mock_hass, entry, mock_session)
-
-        result = entity._corrector.correct("開燈")
-        assert result.corrected == "turn on light"
-
-    def test_default_corrector_no_phrases(self, mock_hass):
-        """Default corrector without known phrases should not change text."""
-        entry = _make_config_entry()
-
-        mock_session = AsyncMock()
-        entity = _create_entity_with_session(mock_hass, entry, mock_session)
-
-        # Without known phrases, pinyin matching has nothing to match against
-        result = entity._corrector.correct("打開走廊等")
-        assert result.corrected == "打開走廊等"
-
-    def test_corrector_with_known_phrases(self, mock_hass):
-        """Corrector with known phrases should correct homophones via pinyin."""
-        entry = _make_config_entry()
-
-        mock_session = AsyncMock()
-        entity = _create_entity_with_session(mock_hass, entry, mock_session)
-
-        # Simulate what happens when phrases are updated from entity registry
-        entity._corrector.update_phrases(["走廊燈"])
-        result = entity._corrector.correct("打開走廊等")
-        assert "走廊燈" in result.corrected
 
 
 class TestLifecycle:
@@ -682,14 +638,14 @@ class TestRealtimeApiRoute:
 
     @pytest.mark.asyncio
     async def test_realtime_api_success(self, mock_hass):
-        """zh-TW locale should route to realtime API and return DisplayText."""
+        """Realtime-only locale should route to realtime API and return DisplayText."""
         entry = _make_config_entry(options={"enable_entity_hints": False})
 
         mock_post_cm, mock_resp = _mock_aiohttp_response(
             status=200,
             json_data={
                 "RecognitionStatus": "Success",
-                "DisplayText": "你好世界",
+                "DisplayText": "hello world",
             },
         )
         mock_session = _make_mock_session(mock_post_cm)
@@ -703,7 +659,7 @@ class TestRealtimeApiRoute:
         from homeassistant.components.stt import SpeechResultState
 
         assert result.result == SpeechResultState.SUCCESS
-        assert "你好世界" in result.text
+        assert "hello world" in result.text
 
         # Verify the realtime endpoint was used
         url = mock_session.post.call_args.args[0]
@@ -755,14 +711,13 @@ class TestRealtimeApiRoute:
         assert result.text is None
 
 
-class TestRebuildFromOptions:
-    """Test rebuild_from_options on AzureSpeechSTTEntity."""
+class TestRebuildPhraseBuilder:
+    """Test rebuild_phrase_builder on AzureSpeechSTTEntity."""
 
-    def test_rebuild_from_options(self, mock_hass):
-        """rebuild_from_options should rebuild corrector with new settings."""
+    def test_rebuild_phrase_builder(self, mock_hass):
+        """rebuild_phrase_builder should update phrase builder settings."""
         entry = _make_config_entry(
             options={
-                "custom_replacements": {"hello": "world"},
                 "custom_phrases": ["phrase1"],
             }
         )
@@ -770,27 +725,15 @@ class TestRebuildFromOptions:
         mock_session = AsyncMock()
         entity = _create_entity_with_session(mock_hass, entry, mock_session)
 
-        old_corrector = entity._corrector
-
         # Simulate updating options on the config entry
         entry.options = {
-            "custom_replacements": {"foo": "bar"},
             "custom_phrases": ["phrase2", "phrase3"],
-            "fuzzy_threshold": 0.90,
         }
 
-        entity.rebuild_from_options()
+        entity.rebuild_phrase_builder()
 
-        # Corrector should be a new instance
-        assert entity._corrector is not old_corrector
-
-        # New corrector should use the updated replacement rules
-        result = entity._corrector.correct("foo")
-        assert result.corrected == "bar"
-
-        # Old replacement should no longer work
-        result_old = entity._corrector.correct("hello")
-        assert result_old.corrected == "hello"
+        # Phrase builder should have updated custom phrases
+        assert entity._phrase_builder._custom_phrases == ["phrase2", "phrase3"]
 
 
 class TestParallelUpdates:

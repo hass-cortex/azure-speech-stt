@@ -193,7 +193,7 @@ class AzureSTTClient:
 
         Used for locales not supported by Fast Transcription (e.g., zh-TW).
         Returns native script (Traditional Chinese for zh-TW).
-        No phraseList support -- relies on post-processing corrector.
+        No phraseList support -- phrases are only used by Fast Transcription.
 
         Args:
             audio: Raw PCM audio bytes.

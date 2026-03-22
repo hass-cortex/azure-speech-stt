@@ -33,30 +33,14 @@ from .const import (
     AZURE_REGIONS,
     CONF_API_MODES,
     CONF_AUTO_COLLECT_SOURCES,
-    CONF_CORRECTION_STAGES,
-    CONF_CUSTOM_EXCLUSIONS,
     CONF_CUSTOM_PHRASES,
-    CONF_CUSTOM_REPLACEMENTS,
-    CONF_ENABLE_CUSTOM_REPLACEMENTS,
     CONF_ENABLE_ENTITY_HINTS,
-    CONF_ENABLE_FUZZY_MATCHING,
-    CONF_FUZZY_THRESHOLD,
     CONF_SECTION_AUTO_COLLECT,
-    CONF_SECTION_STAGE1,
-    CONF_SECTION_STAGE2,
-    CONF_SECTION_STAGE3,
     CONF_SPEECH_KEY,
     CONF_SPEECH_REGION,
-    CORRECTION_STAGE_HINTS,
-    CORRECTION_STAGE_REPLACEMENTS,
-    CORRECTION_STAGE_SIMILARITY,
     DEFAULT_API_MODES,
     DEFAULT_AUTO_COLLECT_SOURCES,
-    DEFAULT_CORRECTION_STAGES,
-    DEFAULT_ENABLE_CUSTOM_REPLACEMENTS,
     DEFAULT_ENABLE_ENTITY_HINTS,
-    DEFAULT_ENABLE_FUZZY_MATCHING,
-    DEFAULT_FUZZY_THRESHOLD,
     DOMAIN,
     TOKEN_ENDPOINT,
 )
@@ -76,6 +60,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_DISPLAY_NAME): str,
     }
 )
+
+# Section key for phrase hints
+CONF_SECTION_PHRASE_HINTS = "phrase_hints"
 
 
 async def _validate_credentials(
@@ -242,8 +229,10 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
             # Validate at least one API is selected; fall back to default if empty
             api_modes = user_input.get(CONF_API_MODES) or DEFAULT_API_MODES
 
-            # Correction stages multi-select replaces individual enable toggles
-            stages = user_input.get(CONF_CORRECTION_STAGES) or []
+            # Extract enable_entity_hints toggle
+            enable_hints = user_input.get(
+                CONF_ENABLE_ENTITY_HINTS, DEFAULT_ENABLE_ENTITY_HINTS
+            )
 
             # Extract auto-collect sources from section
             s_ac = user_input.get(CONF_SECTION_AUTO_COLLECT, {})
@@ -251,99 +240,38 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
                 CONF_AUTO_COLLECT_SOURCES, DEFAULT_AUTO_COLLECT_SOURCES
             )
 
-            # Extract correction fields from stage sections
-            s1 = user_input.get(CONF_SECTION_STAGE1, {})
-            s2 = user_input.get(CONF_SECTION_STAGE2, {})
-            s3 = user_input.get(CONF_SECTION_STAGE3, {})
-
-            # multiple=True gives list[str] directly
+            # Extract custom phrases from section
+            s_hints = user_input.get(CONF_SECTION_PHRASE_HINTS, {})
             phrases = [
                 p.strip()
-                for p in (s1.get(CONF_CUSTOM_PHRASES) or [])
+                for p in (s_hints.get(CONF_CUSTOM_PHRASES) or [])
                 if p.strip()
-            ]
-
-            # Parse "wrong=correct" entries from list
-            replacements: dict[str, str] = {}
-            for entry in s2.get(CONF_CUSTOM_REPLACEMENTS) or []:
-                entry = entry.strip()
-                if "=" in entry:
-                    wrong, correct = entry.split("=", 1)
-                    wrong = wrong.strip()
-                    correct = correct.strip()
-                    if wrong and correct:
-                        replacements[wrong] = correct
-
-            exclusions = [
-                e.strip()
-                for e in (s3.get(CONF_CUSTOM_EXCLUSIONS) or [])
-                if e.strip()
             ]
 
             return self.async_create_entry(
                 title="",
                 data={
                     CONF_API_MODES: api_modes,
+                    CONF_ENABLE_ENTITY_HINTS: enable_hints,
                     CONF_AUTO_COLLECT_SOURCES: auto_collect_sources,
-                    CONF_CORRECTION_STAGES: stages,
-                    CONF_ENABLE_ENTITY_HINTS: CORRECTION_STAGE_HINTS in stages,
-                    CONF_ENABLE_CUSTOM_REPLACEMENTS: (
-                        CORRECTION_STAGE_REPLACEMENTS in stages
-                    ),
-                    CONF_ENABLE_FUZZY_MATCHING: (
-                        CORRECTION_STAGE_SIMILARITY in stages
-                    ),
-                    CONF_FUZZY_THRESHOLD: s3.get(
-                        CONF_FUZZY_THRESHOLD, DEFAULT_FUZZY_THRESHOLD
-                    ),
                     CONF_CUSTOM_PHRASES: phrases,
-                    CONF_CUSTOM_REPLACEMENTS: replacements,
-                    CONF_CUSTOM_EXCLUSIONS: exclusions,
                 },
             )
 
         options = dict(self._config_entry.options)
 
-        # Prepare current values for suggested_values
-        current_replacements = options.get(CONF_CUSTOM_REPLACEMENTS, {})
-        current_replacements_list = [
-            f"{k}={v}" for k, v in current_replacements.items()
-        ]
-
-        # Build correction_stages from individual enable flags (backward compat)
-        current_stages = options.get(CONF_CORRECTION_STAGES)
-        if current_stages is None:
-            current_stages = []
-            if options.get(CONF_ENABLE_ENTITY_HINTS, DEFAULT_ENABLE_ENTITY_HINTS):
-                current_stages.append(CORRECTION_STAGE_HINTS)
-            if options.get(
-                CONF_ENABLE_CUSTOM_REPLACEMENTS, DEFAULT_ENABLE_CUSTOM_REPLACEMENTS
-            ):
-                current_stages.append(CORRECTION_STAGE_REPLACEMENTS)
-            if options.get(
-                CONF_ENABLE_FUZZY_MATCHING, DEFAULT_ENABLE_FUZZY_MATCHING
-            ):
-                current_stages.append(CORRECTION_STAGE_SIMILARITY)
-
         suggested_values = {
             CONF_API_MODES: options.get(CONF_API_MODES, DEFAULT_API_MODES),
-            CONF_CORRECTION_STAGES: current_stages,
+            CONF_ENABLE_ENTITY_HINTS: options.get(
+                CONF_ENABLE_ENTITY_HINTS, DEFAULT_ENABLE_ENTITY_HINTS
+            ),
             CONF_SECTION_AUTO_COLLECT: {
                 CONF_AUTO_COLLECT_SOURCES: options.get(
                     CONF_AUTO_COLLECT_SOURCES, DEFAULT_AUTO_COLLECT_SOURCES
                 ),
             },
-            CONF_SECTION_STAGE1: {
+            CONF_SECTION_PHRASE_HINTS: {
                 CONF_CUSTOM_PHRASES: options.get(CONF_CUSTOM_PHRASES, []),
-            },
-            CONF_SECTION_STAGE2: {
-                CONF_CUSTOM_REPLACEMENTS: current_replacements_list,
-            },
-            CONF_SECTION_STAGE3: {
-                CONF_FUZZY_THRESHOLD: options.get(
-                    CONF_FUZZY_THRESHOLD, DEFAULT_FUZZY_THRESHOLD
-                ),
-                CONF_CUSTOM_EXCLUSIONS: options.get(CONF_CUSTOM_EXCLUSIONS, []),
             },
         }
 
@@ -367,28 +295,10 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
                         multiple=True,
                     )
                 ),
-                # Correction pipeline stage selector
+                # Enable entity hints toggle
                 vol.Required(
-                    CONF_CORRECTION_STAGES, default=DEFAULT_CORRECTION_STAGES
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(
-                                value=CORRECTION_STAGE_HINTS,
-                                label="Pre-recognition Hints",
-                            ),
-                            SelectOptionDict(
-                                value=CORRECTION_STAGE_REPLACEMENTS,
-                                label="Custom Replacements",
-                            ),
-                            SelectOptionDict(
-                                value=CORRECTION_STAGE_SIMILARITY,
-                                label="Similarity Matching",
-                            ),
-                        ],
-                        multiple=True,
-                    )
-                ),
+                    CONF_ENABLE_ENTITY_HINTS, default=DEFAULT_ENABLE_ENTITY_HINTS
+                ): bool,
                 # Auto-collect phrase sources
                 vol.Optional(CONF_SECTION_AUTO_COLLECT): section(
                     vol.Schema(
@@ -423,35 +333,12 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
                     ),
                     {"collapsed": True},
                 ),
-                # Stage detail sections
-                vol.Optional(CONF_SECTION_STAGE1): section(
+                # Custom phrase hints
+                vol.Optional(CONF_SECTION_PHRASE_HINTS): section(
                     vol.Schema(
                         {
                             vol.Optional(
                                 CONF_CUSTOM_PHRASES, default=[]
-                            ): TextSelector(TextSelectorConfig(multiple=True)),
-                        }
-                    ),
-                    {"collapsed": True},
-                ),
-                vol.Optional(CONF_SECTION_STAGE2): section(
-                    vol.Schema(
-                        {
-                            vol.Optional(
-                                CONF_CUSTOM_REPLACEMENTS, default=[]
-                            ): TextSelector(TextSelectorConfig(multiple=True)),
-                        }
-                    ),
-                    {"collapsed": True},
-                ),
-                vol.Optional(CONF_SECTION_STAGE3): section(
-                    vol.Schema(
-                        {
-                            vol.Required(CONF_FUZZY_THRESHOLD): vol.All(
-                                vol.Coerce(float), vol.Range(min=0.5, max=1.0)
-                            ),
-                            vol.Optional(
-                                CONF_CUSTOM_EXCLUSIONS, default=[]
                             ): TextSelector(TextSelectorConfig(multiple=True)),
                         }
                     ),

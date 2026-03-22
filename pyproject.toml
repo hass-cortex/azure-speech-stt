@@ -1,12 +1,12 @@
 [project]
 name = "azure-speech-stt"
 version = "0.1.0"
-description = "Azure Speech-to-Text integration for Home Assistant with post-recognition correction"
+description = "Azure Speech-to-Text integration for Home Assistant with pre-recognition phrase hints"
 readme = "README.md"
 requires-python = ">=3.14"
 license = {text = "MIT"}
 authors = [{name = "parkghost", email = "parkghost@gmail.com"}]
-keywords = ["home-assistant", "azure", "speech-to-text", "stt", "voice", "correction", "pinyin"]
+keywords = ["home-assistant", "azure", "speech-to-text", "stt", "voice"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -16,7 +16,7 @@ classifiers = [
     "Topic :: Home Automation",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
-dependencies = ["pypinyin>=0.55.0"]
+dependencies = []
 
 [build-system]
 requires = ["setuptools>=61.0"]

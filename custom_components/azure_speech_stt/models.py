@@ -24,12 +24,10 @@ class TranscriptionStats:
 
     success: bool
     api_error: bool
-    correction_applied: bool
     duration_ms: float = 0.0
     audio_bytes: int = 0
     audio_seconds: float = 0.0
     language: str = ""
     api_used: str = ""
     raw_text: str | None = None
-    corrected_text: str | None = None
     avg_duration_ms: float | None = None

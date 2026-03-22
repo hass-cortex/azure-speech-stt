@@ -65,16 +65,10 @@ class TestAsyncSetupEntry:
         mock_session = AsyncMock()
         mock_session.post = MagicMock(return_value=_mock_token_response(status=200))
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
             mock_hass.config_entries.async_forward_entry_setups = AsyncMock()
 
             from custom_components.azure_speech_stt import async_setup_entry
@@ -98,17 +92,10 @@ class TestAsyncSetupEntry:
             return_value=_mock_token_response(status=401, text="Unauthorized")
         )
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
-
             from custom_components.azure_speech_stt import async_setup_entry
 
             with pytest.raises(ConfigEntryAuthFailed):
@@ -126,17 +113,10 @@ class TestAsyncSetupEntry:
             return_value=_mock_token_response(status=403, text="Forbidden")
         )
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
-
             from custom_components.azure_speech_stt import async_setup_entry
 
             with pytest.raises(ConfigEntryAuthFailed):
@@ -154,17 +134,10 @@ class TestAsyncSetupEntry:
             return_value=_mock_token_response(status=500, text="Server Error")
         )
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
-
             from custom_components.azure_speech_stt import async_setup_entry
 
             with pytest.raises(ConfigEntryNotReady):
@@ -182,17 +155,10 @@ class TestAsyncSetupEntry:
             side_effect=aiohttp.ClientConnectionError("Connection refused")
         )
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
-
             from custom_components.azure_speech_stt import async_setup_entry
 
             with pytest.raises(ConfigEntryNotReady):
@@ -208,17 +174,10 @@ class TestAsyncSetupEntry:
         mock_session = AsyncMock()
         mock_session.post = MagicMock(side_effect=TimeoutError("Request timed out"))
 
-        with (
-            patch(
-                "custom_components.azure_speech_stt.async_get_clientsession",
-                return_value=mock_session,
-            ),
-            patch(
-                "custom_components.azure_speech_stt._preload_pypinyin",
-            ),
+        with patch(
+            "custom_components.azure_speech_stt.async_get_clientsession",
+            return_value=mock_session,
         ):
-            mock_hass.async_add_executor_job = AsyncMock()
-
             from custom_components.azure_speech_stt import async_setup_entry
 
             with pytest.raises(ConfigEntryNotReady):
@@ -260,20 +219,20 @@ class TestUpdateOptions:
     """Test _async_update_options listener."""
 
     @pytest.mark.asyncio
-    async def test_update_options_rebuilds_corrector(self, mock_hass):
-        """Options update should call rebuild_from_options on the entity."""
+    async def test_update_options_rebuilds_phrase_builder(self, mock_hass):
+        """Options update should call rebuild_phrase_builder on the entity."""
         entry = _make_config_entry()
 
         # Simulate an entity stored in runtime_data
         mock_entity = MagicMock()
-        mock_entity.rebuild_from_options = MagicMock()
+        mock_entity.rebuild_phrase_builder = MagicMock()
         entry.runtime_data = AzureSTTRuntimeData(entity=mock_entity)
 
         from custom_components.azure_speech_stt import _async_update_options
 
         await _async_update_options(mock_hass, entry)
 
-        mock_entity.rebuild_from_options.assert_called_once()
+        mock_entity.rebuild_phrase_builder.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_options_no_entity(self, mock_hass):

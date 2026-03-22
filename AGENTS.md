@@ -4,11 +4,11 @@ Instructions for AI coding agents working on this repository.
 
 ## Project Overview
 
-Home Assistant custom integration for Azure Speech-to-Text with a three-stage post-recognition correction pipeline. Single-package repo (not a monorepo).
+Home Assistant custom integration for Azure Speech-to-Text with pre-recognition phrase hints via Azure's phraseList API.
 
 ## Tech Stack
 
-- **Runtime**: Python 3.14+, aiohttp, pypinyin
+- **Runtime**: Python 3.14+, aiohttp
 - **Package manager**: `uv` (not pip)
 - **Testing**: pytest, pytest-asyncio (asyncio_mode = "auto"), pytest-cov
 - **Linting**: ruff (lint + format)
@@ -26,19 +26,10 @@ custom_components/azure_speech_stt/
 ├── sensor.py            # Runtime statistics sensors
 ├── models.py            # AzureSTTRuntimeData dataclass
 ├── config_flow.py       # Setup, reconfigure, reauth, options flows
-├── correction_config.py # CorrectionConfig dataclass
 ├── services.py          # HA services with vol.Schema validation
 ├── helpers.py           # find_stt_entity via runtime_data lookup
 ├── phrase_builder.py    # Collects names from HA registries (configurable per-source)
 ├── const.py             # Constants, locales, regions, endpoints
-├── stt_corrector/
-│   ├── corrector.py       # SpeechCorrector — orchestrates correction pipeline
-│   ├── fuzzy_matcher.py   # FuzzyMatcher — sliding window + similarity scoring
-│   ├── matchers.py        # PhoneticMatcher ABC + DefaultMatcher
-│   ├── languages/
-│   │   └── mandarin.py    # PinyinMatcher + pinyin phonetic similarity
-│   ├── registry.py        # Locale-to-matcher mapping (add new languages here)
-│   └── types.py           # CorrectionMethod, CorrectionChange, CorrectionResult, etc.
 ├── services.yaml        # Service UI definitions
 ├── strings.json         # UI strings (source of truth)
 └── translations/en.json # English translations (must match strings.json)
@@ -47,11 +38,10 @@ custom_components/azure_speech_stt/
 ### Key Design Patterns
 
 - **AzureSTTClient**: Receives `aiohttp.ClientSession` via constructor (HA's shared session). Never create your own session.
-- **Entity public API**: `last_recognition`, `async_test_correction()`, `async_get_phrases()` — services use these instead of accessing private attributes.
+- **Entity public API**: `last_recognition`, `async_get_phrases()` — services use these instead of accessing private attributes.
 - **runtime_data**: Uses typed `AzureSTTRuntimeData` dataclass (in `models.py`). Access entity via `runtime_data.entity`, sensors via `runtime_data.sensors`. Use `helpers.find_stt_entity()` to retrieve the STT entity.
-- **Sensor push updates**: STT entity calls `_notify_sensors()` after each transcription. Sensors use `RestoreSensor` for state persistence across restarts.
-- **PhoneticMatcher**: Abstract base with `supports()`, `similarity()`, `windows()`. Add new language matchers by subclassing in `stt_corrector/languages/` and registering in `registry.py` — no core changes needed. See [Adding a New Language Matcher](#adding-a-new-language-matcher).
-- **PhraseBuilder**: Event-driven cache invalidation via entity/area/device/floor registry event subscriptions. Auto-collect sources (floors, areas, devices, exposed entities) are independently configurable via `CONF_AUTO_COLLECT_SOURCES`. Phrases are shared by both Pre-recognition Hints (API phraseList) and Similarity Matching (post-recognition correction).
+- **Sensor push updates**: STT entity calls `_push_stats()` after each transcription. Sensors use `RestoreSensor` for state persistence across restarts.
+- **PhraseBuilder**: Event-driven cache invalidation via entity/area/device/floor registry event subscriptions. Auto-collect sources (floors, areas, devices, exposed entities) are independently configurable via `CONF_AUTO_COLLECT_SOURCES`. Phrases are sent as Azure API `phraseList` hints to improve recognition accuracy.
 
 ## Development Commands
 
@@ -70,7 +60,7 @@ uv run cz bump                             # Version bump (auto from commits)
 - Tests mock the entire `homeassistant` module hierarchy via `tests/conftest.py` (`sys.modules` injection). Read `conftest.py` before writing tests.
 - `SpeechResult`, `ConfigEntry`, `HomeAssistant` etc. are all mock classes — not real HA types.
 - Integration tests in `tests/integration/` require `AZURE_STT_API_KEY` env var and are skipped by default.
-- Coverage threshold: 70% (`fail_under` in pyproject.toml). Current actual: ~93%.
+- Coverage threshold: 70% (`fail_under` in pyproject.toml). Current actual: ~87%.
 
 ## Conventions
 
@@ -87,7 +77,6 @@ uv run cz bump                             # Version bump (auto from commits)
 
 - `ruff format` has a false positive on `config_flow.py` (removes parentheses from multi-except, invalid in Python 3). The file is excluded from ruff format via `pyproject.toml`.
 - Pyright reports many `reportMissingImports` because `homeassistant` is not installed. These are expected — we use mypy with `ignore_missing_imports = true` instead.
-- `list[DefaultMatcher]` vs `list[PhoneticMatcher]` type variance warning is a known Pyright/mypy limitation (list is invariant). Does not affect runtime.
 
 ## Quality Scale
 
@@ -168,64 +157,6 @@ HACS uses `AwesomeVersion` for comparison. Tag format follows commitizen's `tag_
 | Beta | `1.1.0b1` | `1.1.0b1` |
 
 HACS only checks GitHub's `prerelease` boolean flag — tag naming does not affect channel routing.
-
-## Adding a New Language Matcher
-
-To add phonetic correction for a new language, only two files need changes:
-
-### Step 1: Create the matcher (`stt_corrector/languages/<language>.py`)
-
-Subclass `PhoneticMatcher` and implement three methods:
-
-```python
-"""<Language> phonetic matching for STT correction."""
-
-from __future__ import annotations
-
-from ..matchers import PhoneticMatcher
-
-
-class <Language>Matcher(PhoneticMatcher):
-
-    def supports(self, text: str) -> bool:
-        """Return True if text contains characters this matcher handles."""
-
-    def similarity(self, text_a: str, text_b: str) -> float:
-        """Compute phonetic similarity (0.0–1.0) between two strings."""
-
-    def windows(self, text: str, phrase: str) -> list[tuple[int, int]]:
-        """Generate (start, end) sliding window positions for matching."""
-```
-
-| Method | Purpose | Example (Mandarin) |
-|--------|---------|-------------------|
-| `supports()` | Detect if text belongs to this language | CJK unicode range check |
-| `similarity()` | Phonetic similarity score | Pinyin syllable comparison |
-| `windows()` | Sliding window strategy | Character-level for CJK, word-level for alphabetic |
-
-See `languages/mandarin.py` as a reference implementation.
-
-### Step 2: Register in `stt_corrector/registry.py`
-
-Add one entry to `MatcherRegistry._language_matchers`:
-
-```python
-from .languages.<language> import <Language>Matcher
-
-class MatcherRegistry:
-    _language_matchers: list[tuple[tuple[str, ...], type[PhoneticMatcher]]] = [
-        (("zh-CN", "zh-TW"), PinyinMatcher),
-        (("ja",), <Language>Matcher),  # <-- add here
-    ]
-```
-
-The tuple contains BCP-47 locale prefixes that activate this matcher. `DefaultMatcher` is always appended as fallback — do not add it here.
-
-### What NOT to change
-
-- `matchers.py` — ABC and DefaultMatcher only
-- `corrector.py`, `fuzzy_matcher.py` — pipeline core, language-agnostic
-- `stt.py` — delegates to registry, no matcher knowledge
 
 ## Do NOT
 

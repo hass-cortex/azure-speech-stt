@@ -22,32 +22,8 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: Final = ["stt", "sensor"]
 
 
-def _preload_pypinyin() -> None:
-    """Pre-load pypinyin in executor to avoid blocking I/O in event loop.
-
-    pypinyin reads pinyin_dict.json on import and phrases_dict.json on first
-    lazy_pinyin() call — both trigger blocking open(). Loading them here
-    (in a thread) ensures subsequent calls from the event loop are instant.
-    """
-    from pypinyin import lazy_pinyin
-
-    lazy_pinyin("")  # force-load phrases_dict.json
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Azure Speech-to-Text from a config entry.
-
-    Forwards setup to the STT platform and registers the transcribe service.
-
-    Args:
-        hass: Home Assistant instance.
-        entry: Config entry to set up.
-
-    Returns:
-        True if setup was successful.
-    """
-    await hass.async_add_executor_job(_preload_pypinyin)
-
+    """Set up Azure Speech-to-Text from a config entry."""
     # Validate Azure credentials before setting up the platform
     session = async_get_clientsession(hass)
     token_url = TOKEN_ENDPOINT.format(region=entry.data[CONF_SPEECH_REGION])
@@ -70,10 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.runtime_data = AzureSTTRuntimeData()
 
-    # Forward to STT platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Rebuild corrector when options change (e.g., via services)
+    # Rebuild phrase builder when options change
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
     # Register services (once per domain)
@@ -86,23 +61,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update — rebuild corrector and phrase builder."""
+    """Handle options update — rebuild phrase builder."""
     from .helpers import find_stt_entity
 
     entity = find_stt_entity(hass, entry)
     if entity:
-        entity.rebuild_from_options()
-        _LOGGER.debug("Rebuilt corrector after options update")
+        entity.rebuild_phrase_builder()
+        _LOGGER.debug("Rebuilt phrase builder after options update")
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload an Azure Speech-to-Text config entry.
-
-    Args:
-        hass: Home Assistant instance.
-        entry: Config entry to unload.
-
-    Returns:
-        True if unload was successful.
-    """
+    """Unload an Azure Speech-to-Text config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

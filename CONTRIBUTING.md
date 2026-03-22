@@ -26,7 +26,7 @@ uv run pytest tests/ -v
 uv run pytest tests/ --cov=custom_components --cov-report=term-missing
 
 # Run a specific test file
-uv run pytest tests/test_stt_corrector.py -v
+uv run pytest tests/test_stt.py -v
 ```
 
 ## Code Style
@@ -51,7 +51,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 | `refactor:` | Code restructure without behavior change |
 | `test:` | Adding or updating tests |
 
-Example: `feat: add support for custom phonetic matchers`
+Example: `feat: add support for new Azure API region`
 
 ## Submitting Changes
 
@@ -67,17 +67,15 @@ Example: `feat: add support for custom phonetic matchers`
 azure-speech-stt/
   custom_components/azure_speech_stt/
     __init__.py          # Integration setup (credential validation, platform forwarding)
-    stt.py               # STT entity (audio processing, correction, statistics)
-    sensor.py            # Runtime statistics sensors (12 sensors, RestoreSensor)
+    stt.py               # STT entity (audio processing, phrase hints, statistics)
+    sensor.py            # Runtime statistics sensors (RestoreSensor)
     models.py            # Runtime data models (AzureSTTRuntimeData)
     azure_client.py      # Azure API client (Fast Transcription + Real-time)
     config_flow.py       # Config, options, reauth flows
-    correction_config.py # Correction config dataclass
     helpers.py           # Entity lookup helpers
-    phrase_builder.py    # HA registry phrase collection
-    services.py          # Service handlers
+    phrase_builder.py    # HA registry phrase collection for API hints
+    services.py          # Transcribe service handler
     const.py             # Constants, locales, regions
-    stt_corrector/       # Correction pipeline (fuzzy, pinyin, custom rules)
   tests/                 # Test suite
   docs/                  # Documentation
   pyproject.toml         # Project metadata and tool config

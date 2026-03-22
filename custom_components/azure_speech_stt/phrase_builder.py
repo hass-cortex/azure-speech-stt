@@ -61,6 +61,11 @@ class PhraseBuilder:
         self._unsub_device: Callable[[], None] | None = None
         self._unsub_floor: Callable[[], None] | None = None
 
+    @property
+    def categories(self) -> dict[str, list[str]]:
+        """Return the last-built phrase categories for debug inspection."""
+        return self._categories
+
     def update_custom_phrases(self, phrases: list[str]) -> None:
         """Update custom phrases and invalidate cache."""
         self._custom_phrases = phrases

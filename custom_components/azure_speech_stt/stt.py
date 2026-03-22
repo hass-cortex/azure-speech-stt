@@ -28,19 +28,19 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .azure_client import AzureSTTClient
 from .const import (
     CONF_API_MODES,
-    CONF_CORRECTION_STAGES,
+    CONF_AUTO_COLLECT_SOURCES,
+    CONF_CUSTOM_PHRASES,
+    CONF_ENABLE_ENTITY_HINTS,
     CONF_SPEECH_KEY,
     CONF_SPEECH_REGION,
     DEFAULT_API_MODES,
-    DEFAULT_CORRECTION_STAGES,
+    DEFAULT_AUTO_COLLECT_SOURCES,
+    DEFAULT_ENABLE_ENTITY_HINTS,
     DOMAIN,
     SUPPORTED_LOCALES,
 )
-from .correction_config import CorrectionConfig
 from .models import AzureSTTRuntimeData, TranscriptionStats
 from .phrase_builder import PhraseBuilder
-from .stt_corrector import DiagnosticResult, SpeechCorrector
-from .stt_corrector.registry import MatcherRegistry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,11 +62,10 @@ async def async_setup_entry(
 
 
 class AzureSpeechSTTEntity(SpeechToTextEntity):
-    """Azure Speech-to-Text entity with dual-layer correction.
+    """Azure Speech-to-Text entity with pre-recognition phrase hints.
 
-    Dual-layer correction pipeline:
-    1. Azure Fast Transcription phraseList — hint known phrases to the API
-    2. SpeechCorrector — post-recognition homophone + custom + fuzzy correction
+    Uses Azure phraseList API to hint known entity/area names,
+    improving recognition accuracy for home automation commands.
     """
 
     has_entity_name = True
@@ -89,9 +88,8 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             entry_type=DeviceEntryType.SERVICE,
         )
 
-        # Store last recognition results for service handler access
+        # Store last recognition result for service handler access
         self._last_raw_text: str | None = None
-        self._last_corrected_text: str | None = None
 
         # Track consecutive failures for availability management
         self._consecutive_failures = 0
@@ -108,14 +106,11 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
         )
 
         # Build PhraseBuilder for entity/area hints
-        cfg = CorrectionConfig.from_options(self._options)
-        self._phrase_builder = PhraseBuilder(
-            hass, cfg.custom_phrases, cfg.auto_collect_sources
+        custom_phrases = self._options.get(CONF_CUSTOM_PHRASES, [])
+        auto_collect_sources = self._options.get(
+            CONF_AUTO_COLLECT_SOURCES, DEFAULT_AUTO_COLLECT_SOURCES
         )
-
-        # Build SpeechCorrector (matchers set per-locale on first use)
-        self._corrector_locale: str | None = None
-        self._corrector = self._build_corrector()
+        self._phrase_builder = PhraseBuilder(hass, custom_phrases, auto_collect_sources)
 
     @property
     def _options(self) -> dict[str, Any]:
@@ -157,30 +152,14 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
         return [AudioChannels.CHANNEL_MONO]
 
     @property
-    def last_recognition(self) -> tuple[str | None, str | None]:
-        """Return the last raw and corrected recognition texts.
+    def last_recognition(self) -> str | None:
+        """Return the last raw recognition text.
 
         Returns:
-            Tuple of (raw_text, corrected_text). Both are None if no
-            recognition has been performed yet.
+            The raw transcription text, or None if no recognition
+            has been performed yet.
         """
-        return self._last_raw_text, self._last_corrected_text
-
-    async def async_test_correction(self, text: str) -> DiagnosticResult:
-        """Run the correction pipeline on text for diagnostic purposes.
-
-        Builds the current phrase list and runs the corrector's diagnose
-        method, returning detailed correction and candidate information.
-
-        Args:
-            text: Input text to test correction against.
-
-        Returns:
-            DiagnosticResult with original, corrected, changes, and candidates.
-        """
-        phrases = await self._phrase_builder.build()
-        self._corrector.update_phrases(phrases)
-        return self._corrector.diagnose(text)
+        return self._last_raw_text
 
     async def async_get_phrases(self) -> list[str]:
         """Return the current phrase list from the phrase builder.
@@ -206,6 +185,15 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
         for sensor in runtime_data.sensors:
             sensor.handle_transcription(stats)
 
+    def rebuild_phrase_builder(self) -> None:
+        """Rebuild phrase builder after options change."""
+        custom_phrases = self._options.get(CONF_CUSTOM_PHRASES, [])
+        auto_collect_sources = self._options.get(
+            CONF_AUTO_COLLECT_SOURCES, DEFAULT_AUTO_COLLECT_SOURCES
+        )
+        self._phrase_builder.update_custom_phrases(custom_phrases)
+        self._phrase_builder.update_sources(auto_collect_sources)
+
     async def async_process_audio_stream(
         self, metadata: SpeechMetadata, stream: AsyncIterable[bytes]
     ) -> SpeechResult:
@@ -213,17 +201,16 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
 
         Steps:
         1. Collect all audio bytes from the async stream
-        2. Build phrase list (cached) and update corrector phrases
-        3. Call Azure Fast Transcription REST API
-        4. Apply SpeechCorrector correction pipeline
-        5. Return SpeechResult
+        2. Build phrase list (cached) for Azure API hints
+        3. Call Azure STT API
+        4. Return SpeechResult with raw transcription
 
         Args:
             metadata: Audio metadata (format, codec, sample rate, etc.).
             stream: Async iterable of audio byte chunks.
 
         Returns:
-            SpeechResult with transcribed and corrected text.
+            SpeechResult with transcribed text.
         """
         # Step 1: Collect audio bytes
         chunks: list[bytes] = []
@@ -243,26 +230,19 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             metadata.codec,
         )
 
-        # Step 2: Read options once per request
-        cfg = CorrectionConfig.from_options(self._options)
-
-        # Rebuild corrector if locale changed (selects correct matchers)
-        if metadata.language != self._corrector_locale:
-            self._corrector = self._build_corrector(locale=metadata.language, cfg=cfg)
-            self._corrector_locale = metadata.language
-            _LOGGER.debug("Corrector rebuilt for locale %s", metadata.language)
-        # Always build phrases (based on auto_collect_sources + custom phrases)
-        # and update the corrector for similarity matching
-        phrases = await self._phrase_builder.build()
-        self._corrector.update_phrases(phrases)
-        _LOGGER.debug("Phrase list: %d phrases", len(phrases))
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            for category, items in self._phrase_builder._categories.items():
-                if items:
-                    _LOGGER.debug("  %s (%d): %s", category, len(items), items)
-
-        # Only send phrases to Azure API if Pre-recognition Hints stage is enabled
-        api_phrases = phrases if cfg.enable_entity_hints else []
+        # Step 2: Build phrases for Azure API hints
+        enable_hints = self._options.get(
+            CONF_ENABLE_ENTITY_HINTS, DEFAULT_ENABLE_ENTITY_HINTS
+        )
+        if enable_hints:
+            phrases = await self._phrase_builder.build()
+            _LOGGER.debug("Phrase list: %d phrases", len(phrases))
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                for category, items in self._phrase_builder.categories.items():
+                    if items:
+                        _LOGGER.debug("  %s (%d): %s", category, len(items), items)
+        else:
+            phrases = []
 
         # Step 3: Call Azure STT API
         api_modes = self._options.get(CONF_API_MODES, DEFAULT_API_MODES)
@@ -275,7 +255,7 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
         audio_seconds = len(audio_data) / _PCM_BYTES_PER_SECOND
         t0 = time.monotonic()
         raw_text, api_used = await self._client.transcribe(
-            audio_data, metadata.language, api_phrases, allowed_apis=api_modes
+            audio_data, metadata.language, phrases, allowed_apis=api_modes
         )
         elapsed_ms = (time.monotonic() - t0) * 1000
 
@@ -285,13 +265,11 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
         if raw_text is None:
             # API error occurred (already logged)
             self._last_raw_text = None
-            self._last_corrected_text = None
             self._consecutive_failures += 1
             self._push_stats(
                 TranscriptionStats(
                     success=False,
                     api_error=True,
-                    correction_applied=False,
                     duration_ms=elapsed_ms,
                     audio_bytes=len(audio_data),
                     audio_seconds=audio_seconds,
@@ -312,12 +290,10 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             # Empty transcription (no speech detected)
             _LOGGER.debug("Azure STT: No speech recognized")
             self._last_raw_text = ""
-            self._last_corrected_text = None
             self._push_stats(
                 TranscriptionStats(
                     success=False,
                     api_error=False,
-                    correction_applied=False,
                     duration_ms=elapsed_ms,
                     audio_bytes=len(audio_data),
                     audio_seconds=audio_seconds,
@@ -327,25 +303,10 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             )
             return SpeechResult(text=None, result=SpeechResultState.ERROR)
 
-        _LOGGER.info("Azure STT raw: %s", raw_text)
-
-        # Step 4: Apply correction pipeline (if any stage enabled)
-        correction_stages = self._options.get(
-            CONF_CORRECTION_STAGES, DEFAULT_CORRECTION_STAGES
-        )
-        if correction_stages:
-            correction = self._corrector.diagnose(raw_text)
-            self._log_correction_result(correction, cfg)
-            final_text = correction.corrected
-            correction_applied = bool(correction.changes)
-        else:
-            _LOGGER.debug("Correction pipeline disabled, using raw text")
-            final_text = raw_text
-            correction_applied = False
+        _LOGGER.info("Azure STT result: %s", raw_text)
 
         # Update service API state
         self._last_raw_text = raw_text
-        self._last_corrected_text = final_text if correction_applied else None
 
         # Compute session average duration
         self._session_success_count += 1
@@ -357,14 +318,12 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             TranscriptionStats(
                 success=True,
                 api_error=False,
-                correction_applied=correction_applied,
                 duration_ms=elapsed_ms,
                 audio_bytes=len(audio_data),
                 audio_seconds=audio_seconds,
                 language=metadata.language,
                 api_used=api_used,
                 raw_text=raw_text,
-                corrected_text=(final_text if correction_applied else None),
                 avg_duration_ms=avg_ms,
             )
         )
@@ -378,118 +337,6 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
             self._consecutive_failures = 0
 
         return SpeechResult(
-            text=final_text,
+            text=raw_text,
             result=SpeechResultState.SUCCESS,
-        )
-
-    def _log_correction_result(
-        self,
-        correction: DiagnosticResult,
-        cfg: CorrectionConfig,
-    ) -> None:
-        """Log correction pipeline results at appropriate levels.
-
-        Args:
-            correction: Diagnostic result from the correction pipeline.
-            cfg: Current correction configuration.
-        """
-        if correction.corrected != correction.original:
-            _LOGGER.info(
-                "Azure STT corrected: '%s' → '%s'",
-                correction.original,
-                correction.corrected,
-            )
-
-        if not _LOGGER.isEnabledFor(logging.DEBUG):
-            return
-
-        # Single pass to partition changes by method
-        custom_changes: list = []
-        fuzzy_changes: list = []
-        for change in correction.changes:
-            if change.method == "custom_rule":
-                custom_changes.append(change)
-            else:
-                fuzzy_changes.append(change)
-
-        _LOGGER.debug(
-            "Correction stage 1 (replacements): %s, %d rules, %d applied",
-            "ON" if cfg.enable_custom_replacements else "OFF",
-            len(cfg.custom_replacements),
-            len(custom_changes),
-        )
-        for change in custom_changes:
-            _LOGGER.debug(
-                "  [custom_rule] '%s' → '%s'",
-                change.original_segment,
-                change.corrected_segment,
-            )
-
-        excluded_count = sum(1 for c in correction.candidates if c.excluded)
-        _LOGGER.debug(
-            "Correction stage 2 (similarity): %s, threshold=%.2f, %d applied, %d exclusions (%d hit)",
-            "ON" if cfg.enable_fuzzy_matching else "OFF",
-            cfg.fuzzy_threshold,
-            len(fuzzy_changes),
-            len(cfg.custom_exclusions),
-            excluded_count,
-        )
-        for change in fuzzy_changes:
-            _LOGGER.debug(
-                "  [fuzzy_match] '%s' → '%s' (score: %.2f)",
-                change.original_segment,
-                change.corrected_segment,
-                change.confidence,
-            )
-
-        if correction.candidates:
-            top3 = correction.candidates[:3]
-            _LOGGER.debug("Top candidates:")
-            for c in top3:
-                status = (
-                    "excluded"
-                    if c.excluded
-                    else "accepted"
-                    if c.accepted
-                    else "rejected"
-                )
-                _LOGGER.debug(
-                    "  '%s' → '%s' (score: %.4f, threshold: %.2f, %s)",
-                    c.segment,
-                    c.phrase,
-                    c.score,
-                    c.threshold,
-                    status,
-                )
-
-    def rebuild_from_options(self) -> None:
-        """Rebuild corrector and phrase builder after options change."""
-        cfg = CorrectionConfig.from_options(self._options)
-        self._corrector = self._build_corrector(locale=self._corrector_locale, cfg=cfg)
-        self._phrase_builder.update_custom_phrases(cfg.custom_phrases)
-        self._phrase_builder.update_sources(cfg.auto_collect_sources)
-
-    def _build_corrector(
-        self,
-        locale: str | None = None,
-        cfg: CorrectionConfig | None = None,
-    ) -> SpeechCorrector:
-        """Build the SpeechCorrector from config options.
-
-        Args:
-            locale: BCP-47 locale code. Determines which phonetic matchers
-                    to use via the matcher registry.
-            cfg: Pre-built config. If None, reads from options.
-        """
-        if cfg is None:
-            cfg = CorrectionConfig.from_options(self._options)
-
-        return SpeechCorrector(
-            known_phrases=[],
-            custom_replacements=cfg.custom_replacements or None,
-            fuzzy_threshold=cfg.fuzzy_threshold,
-            enable_custom_replacements=cfg.enable_custom_replacements,
-            enable_fuzzy_matching=cfg.enable_fuzzy_matching,
-            matchers=MatcherRegistry.get_matchers(locale),
-            exclusions=cfg.custom_exclusions or None,
         )

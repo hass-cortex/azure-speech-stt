@@ -311,22 +311,14 @@ class TestOptionsFlowInit:
         assert result["step_id"] == "init"
 
     @pytest.mark.asyncio
-    async def test_init_creates_entry(self):
-        """Init step with input should create entry directly."""
+    async def test_init_creates_entry_with_phrase_hints(self):
+        """Init step with phrase hint input should create entry."""
         flow = _make_options_flow()
         result = await flow.async_step_init(
             user_input={
-                "stage_1": {
-                    "enable_entity_hints": False,
+                "enable_entity_hints": False,
+                "phrase_hints": {
                     "custom_phrases": ["living room", "kitchen"],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": ["bad=good", "wrong=right"],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.8,
                 },
             }
         )
@@ -334,77 +326,7 @@ class TestOptionsFlowInit:
         assert result["type"] == "create_entry"
         data = result["data"]
         assert data["enable_entity_hints"] is False
-        assert data["fuzzy_threshold"] == 0.8
         assert data["custom_phrases"] == ["living room", "kitchen"]
-        assert data["custom_replacements"] == {"bad": "good", "wrong": "right"}
-
-    @pytest.mark.asyncio
-    async def test_init_parses_replacements(self):
-        """Init step should parse wrong=correct entries from list."""
-        flow = _make_options_flow()
-        result = await flow.async_step_init(
-            user_input={
-                "stage_1": {
-                    "enable_entity_hints": True,
-                    "custom_phrases": [],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": ["oops=fixed", "typo=correct"],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.75,
-                },
-            }
-        )
-
-        assert result["type"] == "create_entry"
-        assert result["data"]["custom_replacements"] == {
-            "oops": "fixed",
-            "typo": "correct",
-        }
-
-    @pytest.mark.asyncio
-    async def test_init_handles_empty_phrases_and_replacements(self):
-        """Init step should handle empty phrases and replacements."""
-        flow = _make_options_flow()
-        result = await flow.async_step_init(
-            user_input={
-                "stage_1": {
-                    "enable_entity_hints": True,
-                    "custom_phrases": [],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": [],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.75,
-                },
-            }
-        )
-
-        assert result["type"] == "create_entry"
-        assert result["data"]["custom_phrases"] == []
-        assert result["data"]["custom_replacements"] == {}
-
-    @pytest.mark.asyncio
-    async def test_init_shows_form_with_existing_options(self):
-        """Init step should show form pre-filled with existing options."""
-        flow = _make_options_flow(
-            options={
-                "enable_entity_hints": True,
-                "fuzzy_threshold": 0.9,
-                "custom_phrases": ["hello"],
-                "custom_replacements": {"bad": "good"},
-            }
-        )
-        result = await flow.async_step_init(user_input=None)
-
-        assert result["type"] == "form"
-        assert result["step_id"] == "init"
 
     @pytest.mark.asyncio
     async def test_init_saves_api_modes(self):
@@ -413,17 +335,9 @@ class TestOptionsFlowInit:
         result = await flow.async_step_init(
             user_input={
                 "api_modes": ["fast_transcription"],
-                "stage_1": {
-                    "enable_entity_hints": True,
+                "enable_entity_hints": True,
+                "phrase_hints": {
                     "custom_phrases": [],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": [],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.8,
                 },
             }
         )
@@ -437,17 +351,9 @@ class TestOptionsFlowInit:
         flow = _make_options_flow()
         result = await flow.async_step_init(
             user_input={
-                "stage_1": {
-                    "enable_entity_hints": True,
+                "enable_entity_hints": True,
+                "phrase_hints": {
                     "custom_phrases": [],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": [],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.8,
                 },
             }
         )
@@ -462,17 +368,9 @@ class TestOptionsFlowInit:
         result = await flow.async_step_init(
             user_input={
                 "api_modes": [],
-                "stage_1": {
-                    "enable_entity_hints": True,
+                "enable_entity_hints": True,
+                "phrase_hints": {
                     "custom_phrases": [],
-                },
-                "stage_2": {
-                    "enable_custom_replacements": True,
-                    "custom_replacements": [],
-                },
-                "stage_3": {
-                    "enable_fuzzy_matching": True,
-                    "fuzzy_threshold": 0.8,
                 },
             }
         )
@@ -481,18 +379,38 @@ class TestOptionsFlowInit:
         assert result["data"]["api_modes"] == ["fast_transcription", "realtime"]
 
     @pytest.mark.asyncio
-    async def test_init_shows_existing_api_modes(self):
-        """Init step should pre-fill existing api_modes selection."""
+    async def test_init_shows_existing_options(self):
+        """Init step should show form pre-filled with existing options."""
         flow = _make_options_flow(
             options={
-                "api_modes": ["realtime"],
                 "enable_entity_hints": True,
+                "custom_phrases": ["hello"],
+                "api_modes": ["realtime"],
             }
         )
         result = await flow.async_step_init(user_input=None)
 
         assert result["type"] == "form"
         assert result["step_id"] == "init"
+
+    @pytest.mark.asyncio
+    async def test_init_saves_auto_collect_sources(self):
+        """Init step should save auto_collect_sources from section."""
+        flow = _make_options_flow()
+        result = await flow.async_step_init(
+            user_input={
+                "enable_entity_hints": True,
+                "auto_collect": {
+                    "auto_collect_sources": ["floors", "areas"],
+                },
+                "phrase_hints": {
+                    "custom_phrases": [],
+                },
+            }
+        )
+
+        assert result["type"] == "create_entry"
+        assert result["data"]["auto_collect_sources"] == ["floors", "areas"]
 
 
 class TestAsyncGetOptionsFlow:
