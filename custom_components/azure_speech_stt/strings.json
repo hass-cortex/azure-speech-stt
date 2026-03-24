@@ -93,6 +93,10 @@
       "name": "Transcribe",
       "description": "Transcribe audio data with Azure Speech-to-Text.",
       "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Target Azure Speech STT entity."
+        },
         "audio_data": {
           "name": "Audio data",
           "description": "Base64-encoded WAV audio (PCM 16kHz mono 16-bit)."

@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import voluptuous as vol
 
+ENTITY_ID = "stt.azure_stt_test"
+
 
 def _make_service_call(data: dict) -> MagicMock:
     """Create a mock ServiceCall with the given data."""
@@ -63,6 +65,7 @@ class TestTranscribeService:
 
         call = _make_service_call(
             {
+                "entity_id": ENTITY_ID,
                 "audio_data": audio_b64,
                 "format": "wav",
                 "codec": "pcm",
@@ -88,7 +91,9 @@ class TestTranscribeService:
             async_handle_transcribe,
         )
 
-        call = _make_service_call({"audio_data": "not-valid-base64!!!"})
+        call = _make_service_call(
+            {"entity_id": ENTITY_ID, "audio_data": "not-valid-base64!!!"}
+        )
 
         with pytest.raises(ServiceValidationError, match="Invalid base64"):
             await async_handle_transcribe(mock_hass, call)
@@ -102,7 +107,7 @@ class TestTranscribeService:
             async_handle_transcribe,
         )
 
-        call = _make_service_call({"audio_data": ""})
+        call = _make_service_call({"entity_id": ENTITY_ID, "audio_data": ""})
 
         with pytest.raises(
             ServiceValidationError, match="required and cannot be empty"
@@ -118,7 +123,7 @@ class TestTranscribeService:
             async_handle_transcribe,
         )
 
-        call = _make_service_call({})
+        call = _make_service_call({"entity_id": ENTITY_ID})
 
         with pytest.raises(
             ServiceValidationError, match="required and cannot be empty"
@@ -137,7 +142,7 @@ class TestTranscribeService:
 
         entity = _make_stt_entity(success=False)
 
-        call = _make_service_call({"audio_data": audio_b64})
+        call = _make_service_call({"entity_id": ENTITY_ID, "audio_data": audio_b64})
 
         with patch(
             "custom_components.azure_speech_stt.services._find_stt_entity",
@@ -159,8 +164,8 @@ class TestTranscribeService:
 
         entity = _make_stt_entity(text="result")
 
-        # Only provide audio_data, rely on defaults
-        call = _make_service_call({"audio_data": audio_b64})
+        # Only provide entity_id and audio_data, rely on defaults
+        call = _make_service_call({"entity_id": ENTITY_ID, "audio_data": audio_b64})
 
         with patch(
             "custom_components.azure_speech_stt.services._find_stt_entity",
@@ -197,28 +202,41 @@ class TestSchemaValidation:
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_TRANSCRIBE({"audio_data": "dGVzdA==", "language": 12345})
+            SCHEMA_TRANSCRIBE(
+                {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "language": 12345}
+            )
 
     def test_transcribe_invalid_format(self):
         """Invalid audio format should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_TRANSCRIBE({"audio_data": "dGVzdA==", "format": "mp3"})
+            SCHEMA_TRANSCRIBE(
+                {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "format": "mp3"}
+            )
 
     def test_transcribe_invalid_codec(self):
         """Invalid audio codec should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_TRANSCRIBE({"audio_data": "dGVzdA==", "codec": "aac"})
+            SCHEMA_TRANSCRIBE(
+                {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "codec": "aac"}
+            )
 
     def test_transcribe_missing_audio_data(self):
         """Missing audio_data should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
         with pytest.raises(vol.MultipleInvalid):
-            SCHEMA_TRANSCRIBE({"language": "en-US"})
+            SCHEMA_TRANSCRIBE({"entity_id": ENTITY_ID, "language": "en-US"})
+
+    def test_transcribe_missing_entity_id(self):
+        """Missing entity_id should be rejected by schema."""
+        from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
+
+        with pytest.raises(vol.MultipleInvalid):
+            SCHEMA_TRANSCRIBE({"audio_data": "dGVzdA==", "language": "en-US"})
 
 
 class TestInputLimits:
@@ -238,7 +256,7 @@ class TestInputLimits:
         large_audio = b"\x00" * (MAX_AUDIO_SIZE + 1)
         audio_b64 = base64.b64encode(large_audio).decode()
 
-        call = _make_service_call({"audio_data": audio_b64})
+        call = _make_service_call({"entity_id": ENTITY_ID, "audio_data": audio_b64})
 
         with pytest.raises(ServiceValidationError, match="too large"):
             await async_handle_transcribe(mock_hass, call)

@@ -10,6 +10,7 @@ Direct transcription service for programmatic use (returns response data).
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
+| `entity_id` | Yes | -- | Target Azure Speech STT entity |
 | `audio_data` | Yes | -- | Base64-encoded WAV audio (PCM 16kHz mono 16-bit) |
 | `format` | No | `wav` | Audio format (`wav` or `ogg`) |
 | `codec` | No | `pcm` | Audio codec (`pcm` or `opus`) |

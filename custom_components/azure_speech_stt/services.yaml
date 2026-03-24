@@ -1,6 +1,14 @@
 transcribe:
   description: 'Transcribe audio data with Azure Speech-to-Text'
   fields:
+    entity_id:
+      description: 'Target Azure Speech STT entity'
+      required: true
+      example: 'stt.azure_stt_japanwest'
+      selector:
+        entity:
+          integration: azure_speech_stt
+          domain: stt
     audio_data:
       description: 'Base64 encoded WAV audio (PCM 16kHz mono 16-bit)'
       required: true

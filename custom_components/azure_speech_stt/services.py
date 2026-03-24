@@ -45,6 +45,7 @@ MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10 MB
 # Service schemas
 SCHEMA_TRANSCRIBE = vol.Schema(
     {
+        vol.Required("entity_id"): str,
         vol.Required("audio_data"): str,
         vol.Optional("language", default="en-US"): str,
         vol.Optional("format", default="wav"): vol.In(["wav", "ogg"]),
@@ -65,16 +66,32 @@ async def _bytes_to_stream(data: bytes) -> AsyncIterator[bytes]:
     yield data
 
 
-def _find_stt_entity(hass: HomeAssistant) -> AzureSpeechSTTEntity:
-    """Find the first Azure STT entity, raising if not found."""
-    from .helpers import find_stt_entity
+def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> AzureSpeechSTTEntity:
+    """Find an Azure STT entity by entity_id.
 
-    entity = find_stt_entity(hass)
-    if entity is None:
-        raise ServiceValidationError(
-            f"No {DOMAIN} STT entity found. Ensure the integration is configured."
-        )
-    return entity
+    Args:
+        hass: Home Assistant instance.
+        entity_id: The entity_id of the target Azure STT entity.
+
+    Returns:
+        The matching AzureSpeechSTTEntity instance.
+
+    Raises:
+        ServiceValidationError: If no matching entity is found.
+    """
+    from .models import AzureSTTRuntimeData
+
+    for cfg_entry in hass.config_entries.async_entries(DOMAIN):
+        runtime_data = getattr(cfg_entry, "runtime_data", None)
+        if isinstance(runtime_data, AzureSTTRuntimeData):
+            if (
+                runtime_data.entity is not None
+                and runtime_data.entity.entity_id == entity_id
+            ):
+                return runtime_data.entity
+    raise ServiceValidationError(
+        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'."
+    )
 
 
 async def async_handle_transcribe(hass: HomeAssistant, call: ServiceCall) -> dict:
@@ -118,7 +135,7 @@ async def async_handle_transcribe(hass: HomeAssistant, call: ServiceCall) -> dic
         )
 
     # Find the STT entity
-    entity = _find_stt_entity(hass)
+    entity = _find_stt_entity(hass, call.data["entity_id"])
 
     # Build metadata
     metadata = SpeechMetadata(
