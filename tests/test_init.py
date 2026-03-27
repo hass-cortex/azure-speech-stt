@@ -184,6 +184,23 @@ class TestAsyncSetupEntry:
                 await async_setup_entry(mock_hass, entry)
 
 
+class TestAsyncSetup:
+    """Test async_setup (service registration)."""
+
+    @pytest.mark.asyncio
+    async def test_async_setup_registers_services(self, mock_hass):
+        """async_setup should register the transcribe service."""
+        from custom_components.azure_speech_stt import async_setup
+
+        result = await async_setup(mock_hass, {})
+
+        assert result is True
+        mock_hass.services.async_register.assert_called_once()
+        call_args = mock_hass.services.async_register.call_args
+        assert call_args[0][0] == "azure_speech_stt"
+        assert call_args[0][1] == "transcribe"
+
+
 class TestAsyncUnloadEntry:
     """Test async_unload_entry."""
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -64,6 +65,46 @@ class TestConfigFlowUser:
         assert result["title"] == "Azure STT (eastasia)"
         assert result["data"]["speech_key"] == "valid-key-123"
         assert result["data"]["speech_region"] == "eastasia"
+
+    @pytest.mark.asyncio
+    async def test_sets_unique_id(self, mock_hass):
+        """Valid credentials should set unique_id from region + key hash."""
+        flow = _make_flow(mock_hass)
+
+        with patch(
+            "custom_components.azure_speech_stt.config_flow._validate_credentials",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            await flow.async_step_user(
+                user_input={
+                    "speech_key": "test-key",
+                    "speech_region": "eastasia",
+                }
+            )
+
+        expected = hashlib.sha256(b"eastasia:test-key").hexdigest()[:16]
+        assert flow.context.get("unique_id") == expected
+
+    @pytest.mark.asyncio
+    async def test_duplicate_entry_calls_abort_check(self, mock_hass):
+        """Should call _abort_if_unique_id_configured after setting unique_id."""
+        flow = _make_flow(mock_hass)
+        flow._abort_if_unique_id_configured = MagicMock()
+
+        with patch(
+            "custom_components.azure_speech_stt.config_flow._validate_credentials",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
+            await flow.async_step_user(
+                user_input={
+                    "speech_key": "test-key",
+                    "speech_region": "eastasia",
+                }
+            )
+
+        flow._abort_if_unique_id_configured.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_invalid_key_shows_error(self, mock_hass):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import Any
 
@@ -89,7 +90,7 @@ async def _validate_credentials(
                 return None
             # 401 = invalid key or region
             return "invalid_key"
-    except (aiohttp.ClientError, TimeoutError):
+    except aiohttp.ClientError, TimeoutError:
         return "cannot_connect"
 
 
@@ -159,6 +160,13 @@ class AzureSpeechSTTConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-
             if error:
                 errors["base"] = error
             else:
+                # Prevent duplicate entries for the same subscription
+                unique_id = hashlib.sha256(
+                    f"{user_input[CONF_SPEECH_REGION]}:{user_input[CONF_SPEECH_KEY]}".encode()
+                ).hexdigest()[:16]
+                await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
+
                 display_name = user_input.pop(CONF_DISPLAY_NAME, None)
                 region = user_input[CONF_SPEECH_REGION]
                 title = display_name or f"Azure STT ({region})"
@@ -243,9 +251,7 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
             # Extract custom phrases from section
             s_hints = user_input.get(CONF_SECTION_PHRASE_HINTS, {})
             phrases = [
-                p.strip()
-                for p in (s_hints.get(CONF_CUSTOM_PHRASES) or [])
-                if p.strip()
+                p.strip() for p in (s_hints.get(CONF_CUSTOM_PHRASES) or []) if p.strip()
             ]
 
             return self.async_create_entry(
@@ -278,9 +284,7 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
         schema = vol.Schema(
             {
                 # API selection
-                vol.Required(
-                    CONF_API_MODES, default=DEFAULT_API_MODES
-                ): SelectSelector(
+                vol.Required(CONF_API_MODES, default=DEFAULT_API_MODES): SelectSelector(
                     SelectSelectorConfig(
                         options=[
                             SelectOptionDict(
@@ -337,9 +341,9 @@ class AzureSpeechSTTOptionsFlow(OptionsFlow):
                 vol.Optional(CONF_SECTION_PHRASE_HINTS): section(
                     vol.Schema(
                         {
-                            vol.Optional(
-                                CONF_CUSTOM_PHRASES, default=[]
-                            ): TextSelector(TextSelectorConfig(multiple=True)),
+                            vol.Optional(CONF_CUSTOM_PHRASES, default=[]): TextSelector(
+                                TextSelectorConfig(multiple=True)
+                            ),
                         }
                     ),
                     {"collapsed": True},

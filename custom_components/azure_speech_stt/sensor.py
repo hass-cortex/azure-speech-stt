@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -20,6 +19,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .models import AzureSTTRuntimeData, TranscriptionStats
+
+if TYPE_CHECKING:
+    from . import AzureSpeechSTTConfigEntry
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -165,7 +167,7 @@ SENSOR_DESCRIPTIONS: tuple[AzureSTTSensorDescription, ...] = (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: AzureSpeechSTTConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Azure STT sensors from a config entry."""
@@ -188,7 +190,7 @@ class AzureSTTSensor(RestoreSensor):
 
     def __init__(
         self,
-        config_entry: ConfigEntry,
+        config_entry: AzureSpeechSTTConfigEntry,
         description: AzureSTTSensorDescription,
     ) -> None:
         """Initialize the sensor."""

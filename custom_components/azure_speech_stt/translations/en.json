@@ -32,6 +32,9 @@
     "error": {
       "invalid_key": "Invalid Speech Key or Region. Could not authenticate.",
       "cannot_connect": "Cannot connect to Azure Speech service."
+    },
+    "abort": {
+      "already_configured": "This Azure Speech subscription is already configured."
     }
   },
   "options": {
@@ -86,6 +89,23 @@
           "realtime": "Real-time API"
         }
       }
+    }
+  },
+  "exceptions": {
+    "audio_data_required": {
+      "message": "Audio data is required and cannot be empty."
+    },
+    "invalid_base64": {
+      "message": "Invalid base64 audio data."
+    },
+    "decoded_audio_empty": {
+      "message": "Decoded audio data is empty."
+    },
+    "audio_too_large": {
+      "message": "Audio data too large: {size} bytes (max {max_size} bytes)."
+    },
+    "entity_not_found": {
+      "message": "No Azure Speech STT entity found with entity_id {entity_id}."
     }
   },
   "services": {

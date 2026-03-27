@@ -1,0 +1,89 @@
+rules:
+  # Bronze
+  action-setup: done
+  appropriate-polling:
+    status: exempt
+    comment: |
+      Cloud API called on-demand by HA STT pipeline, not polling.
+  brands: done
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency: done
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: |
+      Azure Speech is a cloud service, not discoverable on local network.
+  discovery-update-info:
+    status: exempt
+    comment: |
+      Cloud service, no local network discovery.
+  docs-data-update:
+    status: exempt
+    comment: |
+      STT is on-demand (pipeline triggers transcription), no periodic data updates.
+  docs-examples: todo
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: |
+      Cloud service integration, not a device integration.
+  docs-supported-functions: done
+  docs-troubleshooting: todo
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: |
+      Single service device per config entry, no dynamic device creation.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: |
+      No known user-repairable issues requiring repair flows.
+  stale-devices:
+    status: exempt
+    comment: |
+      Single service device per config entry, automatically cleaned up on unload.
+
+  # Platinum
+  async-dependency: done
+  inject-websession: done
+  strict-typing:
+    status: exempt
+    comment: |
+      mypy strict enabled with relaxations for untyped HA stubs.
+      Full strict-typing requires homeassistant type stubs which are
+      not available for custom integrations running outside HA.

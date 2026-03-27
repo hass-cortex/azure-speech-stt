@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Final
+from typing import Any, Final
 
 import aiohttp
 from homeassistant.config_entries import (
@@ -12,17 +12,31 @@ from homeassistant.config_entries import (
     ConfigEntryNotReady,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_SPEECH_KEY, CONF_SPEECH_REGION, DOMAIN, TOKEN_ENDPOINT
 from .models import AzureSTTRuntimeData
 
+type AzureSpeechSTTConfigEntry = ConfigEntry[AzureSTTRuntimeData]
+
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: Final = ["stt", "sensor"]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up Azure Speech-to-Text integration."""
+    from .services import async_register_services
+
+    async_register_services(hass)
+    return True
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: AzureSpeechSTTConfigEntry
+) -> bool:
     """Set up Azure Speech-to-Text from a config entry."""
     # Validate Azure credentials before setting up the platform
     session = async_get_clientsession(hass)
@@ -51,16 +65,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Rebuild phrase builder when options change
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
-    # Register services (once per domain)
-    if not hass.services.has_service(DOMAIN, "transcribe"):
-        from .services import async_register_services
-
-        async_register_services(hass)
-
     return True
 
 
-async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_update_options(
+    hass: HomeAssistant, entry: AzureSpeechSTTConfigEntry
+) -> None:
     """Handle options update — rebuild phrase builder."""
     from .helpers import find_stt_entity
 
@@ -70,6 +80,8 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
         _LOGGER.debug("Rebuilt phrase builder after options update")
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: AzureSpeechSTTConfigEntry
+) -> bool:
     """Unload an Azure Speech-to-Text config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

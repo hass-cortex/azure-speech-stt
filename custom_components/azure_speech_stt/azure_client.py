@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import wave
+from typing import Any
 from urllib.parse import quote
 
 import aiohttp
@@ -147,7 +148,7 @@ class AzureSTTClient:
         """
         url = FAST_TRANSCRIPTION_ENDPOINT.format(region=self._region)
 
-        definition: dict = {"locales": [language]}
+        definition: dict[str, Any] = {"locales": [language]}
         if phrases:
             definition["phraseList"] = {"phrases": phrases}
 

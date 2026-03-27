@@ -90,11 +90,16 @@ def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> AzureSpeechSTTEntit
             ):
                 return runtime_data.entity
     raise ServiceValidationError(
-        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'."
+        f"No {DOMAIN} STT entity found with entity_id '{entity_id}'.",
+        translation_domain=DOMAIN,
+        translation_key="entity_not_found",
+        translation_placeholders={"entity_id": entity_id},
     )
 
 
-async def async_handle_transcribe(hass: HomeAssistant, call: ServiceCall) -> dict:
+async def async_handle_transcribe(
+    hass: HomeAssistant, call: ServiceCall
+) -> dict[str, str]:
     """Handle the transcribe service call.
 
     Decodes base64 audio, sends it through the STT entity pipeline,
@@ -118,20 +123,38 @@ async def async_handle_transcribe(hass: HomeAssistant, call: ServiceCall) -> dic
 
     # Decode base64 audio
     if not audio_b64:
-        raise ServiceValidationError("audio_data is required and cannot be empty")
+        raise ServiceValidationError(
+            "audio_data is required and cannot be empty",
+            translation_domain=DOMAIN,
+            translation_key="audio_data_required",
+        )
 
     try:
         audio_bytes = base64.b64decode(audio_b64)
     except binascii.Error as err:
-        raise ServiceValidationError("Invalid base64 audio_data") from err
+        raise ServiceValidationError(
+            "Invalid base64 audio_data",
+            translation_domain=DOMAIN,
+            translation_key="invalid_base64",
+        ) from err
 
     if not audio_bytes:
-        raise ServiceValidationError("Decoded audio data is empty")
+        raise ServiceValidationError(
+            "Decoded audio data is empty",
+            translation_domain=DOMAIN,
+            translation_key="decoded_audio_empty",
+        )
 
     if len(audio_bytes) > MAX_AUDIO_SIZE:
         raise ServiceValidationError(
             f"Audio data too large: {len(audio_bytes)} bytes "
-            f"(max {MAX_AUDIO_SIZE} bytes)"
+            f"(max {MAX_AUDIO_SIZE} bytes)",
+            translation_domain=DOMAIN,
+            translation_key="audio_too_large",
+            translation_placeholders={
+                "size": str(len(audio_bytes)),
+                "max_size": str(MAX_AUDIO_SIZE),
+            },
         )
 
     # Find the STT entity
@@ -165,7 +188,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     coroutine functions and properly awaits their return values.
     """
 
-    async def _transcribe(call: ServiceCall) -> dict:
+    async def _transcribe(call: ServiceCall) -> dict[str, str]:
         return await async_handle_transcribe(hass, call)
 
     hass.services.async_register(

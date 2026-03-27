@@ -6,7 +6,7 @@ import logging
 import time
 from collections.abc import AsyncIterable
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.stt import (
     AudioBitRates,
@@ -19,7 +19,6 @@ from homeassistant.components.stt import (
     SpeechResultState,
     SpeechToTextEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
@@ -42,6 +41,9 @@ from .const import (
 from .models import AzureSTTRuntimeData, TranscriptionStats
 from .phrase_builder import PhraseBuilder
 
+if TYPE_CHECKING:
+    from . import AzureSpeechSTTConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
@@ -54,7 +56,7 @@ _PCM_BYTES_PER_SECOND = 16000 * 2 * 1
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: AzureSpeechSTTConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Azure Speech-to-Text STT platform from a config entry."""
@@ -70,7 +72,9 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
 
     has_entity_name = True
 
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, config_entry: AzureSpeechSTTConfigEntry
+    ) -> None:
         """Initialize the Azure STT entity.
 
         Args:

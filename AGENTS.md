@@ -75,7 +75,6 @@ uv run cz bump                             # Version bump (auto from commits)
 
 ## Known Issues
 
-- `ruff format` has a false positive on `config_flow.py` (removes parentheses from multi-except, invalid in Python 3). The file is excluded from ruff format via `pyproject.toml`.
 - Pyright reports many `reportMissingImports` because `homeassistant` is not installed. These are expected — we use mypy with `ignore_missing_imports = true` instead.
 
 ## Quality Scale

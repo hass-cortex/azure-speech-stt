@@ -5,6 +5,7 @@ can be imported without real dependencies.
 """
 
 import sys
+from dataclasses import dataclass as _dataclass
 from types import ModuleType
 from unittest.mock import MagicMock
 
@@ -14,6 +15,7 @@ _ha_core = ModuleType("homeassistant.core")
 _ha_config_entries = ModuleType("homeassistant.config_entries")
 _ha_data_entry_flow = ModuleType("homeassistant.data_entry_flow")
 _ha_helpers = ModuleType("homeassistant.helpers")
+_ha_helpers_cv = ModuleType("homeassistant.helpers.config_validation")
 _ha_helpers_er = ModuleType("homeassistant.helpers.entity_registry")
 _ha_helpers_ar = ModuleType("homeassistant.helpers.area_registry")
 _ha_helpers_dr = ModuleType("homeassistant.helpers.device_registry")
@@ -71,6 +73,12 @@ class _MockConfigFlow:
 
     def async_abort(self, **kwargs):
         return {"type": "abort", **kwargs}
+
+    async def async_set_unique_id(self, unique_id):
+        self.context["unique_id"] = unique_id
+
+    def _abort_if_unique_id_configured(self):
+        pass
 
     def async_update_reload_and_abort(self, entry, **kwargs):
         return {
@@ -158,6 +166,9 @@ _ha_helpers_fr.EVENT_FLOOR_REGISTRY_UPDATED = "floor_registry_updated"
 # Entity platform
 _ha_helpers_ep.AddConfigEntryEntitiesCallback = MagicMock
 
+# config_validation helper
+_ha_helpers_cv.config_entry_only_config_schema = lambda domain: {}
+
 # aiohttp client helper
 _ha_helpers_aiohttp.async_get_clientsession = MagicMock()
 
@@ -218,7 +229,26 @@ class _MockRestoreSensor:
 
 
 _ha_components_sensor.RestoreSensor = _MockRestoreSensor
-_ha_components_sensor.SensorEntityDescription = type("SensorEntityDescription", (), {})
+
+
+@_dataclass(frozen=True, kw_only=True)
+class _MockSensorEntityDescription:
+    """Mock SensorEntityDescription with fields used by AzureSTTSensorDescription."""
+
+    key: str = ""
+    translation_key: str | None = None
+    name: str | None = None
+    icon: str | None = None
+    device_class: object = None
+    state_class: object = None
+    entity_category: object = None
+    entity_registry_enabled_default: bool = True
+    native_unit_of_measurement: str | None = None
+    suggested_display_precision: int | None = None
+    options: list | None = None
+
+
+_ha_components_sensor.SensorEntityDescription = _MockSensorEntityDescription
 _ha_components_sensor.SensorDeviceClass = MagicMock()
 _ha_components_sensor.SensorDeviceClass.ENUM = "enum"
 _ha_components_sensor.SensorStateClass = MagicMock()
@@ -271,6 +301,7 @@ for mod_name, mod in [
     ("homeassistant.helpers.device_registry", _ha_helpers_dr),
     ("homeassistant.helpers.floor_registry", _ha_helpers_fr),
     ("homeassistant.helpers.entity_platform", _ha_helpers_ep),
+    ("homeassistant.helpers.config_validation", _ha_helpers_cv),
     ("homeassistant.helpers.aiohttp_client", _ha_helpers_aiohttp),
     ("homeassistant.helpers.storage", _ha_helpers_storage),
     ("homeassistant.helpers.selector", _ha_helpers_selector),
