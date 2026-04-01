@@ -1,6 +1,6 @@
 [project]
 name = "azure-speech-stt"
-version = "0.2.1"
+version = "0.2.2"
 description = "Azure Speech-to-Text integration for Home Assistant with pre-recognition phrase hints"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -67,7 +67,7 @@ exclude_lines = [
 ]
 
 [tool.commitizen]
-version = "0.2.1"
+version = "0.2.2"
 version_files = [
     "pyproject.toml:version",
     "custom_components/azure_speech_stt/manifest.json:version",
