@@ -107,7 +107,7 @@ class PhraseBuilder:
                 if state and (name := state.attributes.get("friendly_name")):
                     entity_names.add(name)
                 if entry.aliases:
-                    entity_names.update(entry.aliases)
+                    entity_names.update(a for a in entry.aliases if isinstance(a, str))
 
         if AUTO_COLLECT_DEVICES in self._enabled_sources:
             dev_reg = dr.async_get(self._hass)
@@ -123,14 +123,14 @@ class PhraseBuilder:
             for area in area_reg.async_list_areas():
                 area_names.add(area.name)
                 if area.aliases:
-                    area_names.update(area.aliases)
+                    area_names.update(a for a in area.aliases if isinstance(a, str))
 
         if AUTO_COLLECT_FLOORS in self._enabled_sources:
             floor_reg = fr.async_get(self._hass)
             for floor in floor_reg.async_list_floors():
                 floor_names.add(floor.name)
                 if floor.aliases:
-                    floor_names.update(floor.aliases)
+                    floor_names.update(a for a in floor.aliases if isinstance(a, str))
 
         # Merge enabled sources + custom phrases (always included)
         phrases = entity_names | device_names | area_names | floor_names
