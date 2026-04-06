@@ -23,6 +23,8 @@ from .models import AzureSTTRuntimeData, TranscriptionStats
 if TYPE_CHECKING:
     from . import AzureSpeechSTTConfigEntry
 
+PARALLEL_UPDATES = 0
+
 
 @dataclass(frozen=True, kw_only=True)
 class AzureSTTSensorDescription(SensorEntityDescription):
