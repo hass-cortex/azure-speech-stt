@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -219,10 +220,8 @@ class AzureSTTSensor(RestoreSensor):
     async def async_will_remove_from_hass(self) -> None:
         """Unregister this sensor."""
         runtime_data: AzureSTTRuntimeData = self._config_entry.runtime_data
-        try:
+        with contextlib.suppress(ValueError):
             runtime_data.sensors.remove(self)
-        except ValueError:
-            pass
 
     def handle_transcription(self, stats: TranscriptionStats) -> None:
         """Update sensor value from transcription statistics."""
