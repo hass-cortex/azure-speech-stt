@@ -83,12 +83,12 @@ def _find_stt_entity(hass: HomeAssistant, entity_id: str) -> AzureSpeechSTTEntit
 
     for cfg_entry in hass.config_entries.async_entries(DOMAIN):
         runtime_data = getattr(cfg_entry, "runtime_data", None)
-        if isinstance(runtime_data, AzureSTTRuntimeData):
-            if (
-                runtime_data.entity is not None
-                and runtime_data.entity.entity_id == entity_id
-            ):
-                return runtime_data.entity
+        if (
+            isinstance(runtime_data, AzureSTTRuntimeData)
+            and runtime_data.entity is not None
+            and runtime_data.entity.entity_id == entity_id
+        ):
+            return runtime_data.entity
     raise ServiceValidationError(
         f"No {DOMAIN} STT entity found with entity_id '{entity_id}'.",
         translation_domain=DOMAIN,
