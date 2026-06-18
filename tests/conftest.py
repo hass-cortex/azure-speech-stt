@@ -138,6 +138,7 @@ _ha_data_entry_flow.section = _MockSection
 _ha_config_entries.ConfigFlow = _MockConfigFlow
 _ha_config_entries.ConfigFlowResult = dict  # It's a TypedDict
 _ha_config_entries.OptionsFlow = _MockOptionsFlow
+_ha_config_entries.OptionsFlowWithReload = _MockOptionsFlow
 
 # Entity registry
 _ha_helpers_er.async_get = MagicMock()

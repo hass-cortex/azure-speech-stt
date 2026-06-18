@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Final
 
 import aiohttp
@@ -19,8 +18,6 @@ from .const import CONF_SPEECH_KEY, CONF_SPEECH_REGION, DOMAIN, TOKEN_ENDPOINT
 from .models import AzureSTTRuntimeData
 
 type AzureSpeechSTTConfigEntry = ConfigEntry[AzureSTTRuntimeData]
-
-_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: Final = ["stt", "sensor"]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -62,22 +59,7 @@ async def async_setup_entry(
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Rebuild phrase builder when options change
-    entry.async_on_unload(entry.add_update_listener(_async_update_options))
-
     return True
-
-
-async def _async_update_options(
-    hass: HomeAssistant, entry: AzureSpeechSTTConfigEntry
-) -> None:
-    """Handle options update — rebuild phrase builder."""
-    from .helpers import find_stt_entity
-
-    entity = find_stt_entity(hass, entry)
-    if entity:
-        entity.rebuild_phrase_builder()
-        _LOGGER.debug("Rebuilt phrase builder after options update")
 
 
 async def async_unload_entry(

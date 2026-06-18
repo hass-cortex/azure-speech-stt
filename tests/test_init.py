@@ -25,16 +25,6 @@ def _make_config_entry(
     entry.options = options or {}
     entry.runtime_data = AzureSTTRuntimeData()
 
-    # Track update_listener callbacks registered via add_update_listener
-    _listeners: list = []
-
-    def _add_update_listener(listener):
-        _listeners.append(listener)
-        return lambda: _listeners.remove(listener)
-
-    entry.add_update_listener = MagicMock(side_effect=_add_update_listener)
-    entry._listeners = _listeners
-
     # async_on_unload should just call the callback registration
     entry.async_on_unload = MagicMock(side_effect=lambda unsub: unsub)
 
@@ -230,34 +220,3 @@ class TestAsyncUnloadEntry:
         result = await async_unload_entry(mock_hass, entry)
 
         assert result is False
-
-
-class TestUpdateOptions:
-    """Test _async_update_options listener."""
-
-    @pytest.mark.asyncio
-    async def test_update_options_rebuilds_phrase_builder(self, mock_hass):
-        """Options update should call rebuild_phrase_builder on the entity."""
-        entry = _make_config_entry()
-
-        # Simulate an entity stored in runtime_data
-        mock_entity = MagicMock()
-        mock_entity.rebuild_phrase_builder = MagicMock()
-        entry.runtime_data = AzureSTTRuntimeData(entity=mock_entity)
-
-        from custom_components.azure_speech_stt import _async_update_options
-
-        await _async_update_options(mock_hass, entry)
-
-        mock_entity.rebuild_phrase_builder.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_update_options_no_entity(self, mock_hass):
-        """Options update with no entity should not raise."""
-        entry = _make_config_entry()
-        entry.runtime_data = AzureSTTRuntimeData()
-
-        from custom_components.azure_speech_stt import _async_update_options
-
-        # Should not raise
-        await _async_update_options(mock_hass, entry)

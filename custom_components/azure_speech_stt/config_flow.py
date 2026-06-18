@@ -12,7 +12,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -223,7 +223,7 @@ class AzureSpeechSTTConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-
         return AzureSpeechSTTOptionsFlow(config_entry)
 
 
-class AzureSpeechSTTOptionsFlow(OptionsFlow):
+class AzureSpeechSTTOptionsFlow(OptionsFlowWithReload):
     """Handle options flow for Azure Speech-to-Text (single page)."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
