@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: azure-stt
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
       - run: uv sync --frozen --group dev --group test
