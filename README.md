@@ -4,7 +4,7 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://hacs.xyz/)
 [![HA Version](https://img.shields.io/badge/HA-2026.3.0+-green.svg)](https://www.home-assistant.io/)
 [![GitHub License](https://img.shields.io/github/license/hass-cortex/azure-speech-stt)](https://github.com/hass-cortex/azure-speech-stt/blob/main/LICENSE)
-[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hass-cortex/azure-speech-stt)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hass-cortex/azure-speech-stt)
 
 A Home Assistant custom integration providing cloud-based speech-to-text via [Microsoft Azure Speech Services](https://azure.microsoft.com/en-us/products/ai-services/speech-to-text), with pre-recognition phrase hints for improved voice command accuracy.
 
