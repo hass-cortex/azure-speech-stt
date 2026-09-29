@@ -107,10 +107,9 @@ SENSOR_DESCRIPTIONS: tuple[AzureSTTSensorDescription, ...] = (
         suggested_display_precision=1,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
+        # Accumulate unrounded; rounding a running total drifts per clip.
         update_fn=lambda cur, s: (
-            round(float(cur or 0) + s.audio_seconds / 60, 1)
-            if s.success
-            else (cur or 0)
+            float(cur or 0) + s.audio_seconds / 60 if s.success else (cur or 0)
         ),
     ),
     AzureSTTSensorDescription(

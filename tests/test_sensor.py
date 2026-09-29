@@ -307,6 +307,13 @@ class TestHandleTranscription:
         sensor.handle_transcription(_success_stats(audio_seconds=30.0))
         assert sensor._attr_native_value == 1.5  # 90s = 1.5 min
 
+    def test_total_audio_duration_does_not_drift_over_short_clips(self):
+        """Many short clips should sum to the true total, not a multiple of 0.1."""
+        sensor = _make_sensor(_find_description("total_audio_duration"))
+        for _ in range(100):
+            sensor.handle_transcription(_success_stats(audio_seconds=2.5))
+        assert sensor._attr_native_value == pytest.approx(250 / 60)
+
     def test_total_audio_duration_unchanged_on_error(self):
         """Total audio duration should not change on error."""
         sensor = _make_sensor(_find_description("total_audio_duration"))
