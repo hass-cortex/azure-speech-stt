@@ -44,8 +44,7 @@ def _setup_empty_registries(mock_hass: MagicMock) -> None:
     ar.async_get.return_value = area_reg
 
     dev_reg = MagicMock()
-    dev_reg.devices = MagicMock()
-    dev_reg.devices.values.return_value = []
+    dev_reg.devices = []
     dr.async_get.return_value = dev_reg
 
     floor_reg = MagicMock()

@@ -2,7 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/hass-cortex/azure-speech-stt)](https://github.com/hass-cortex/azure-speech-stt/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://hacs.xyz/)
-[![HA Version](https://img.shields.io/badge/HA-2026.3.0+-green.svg)](https://www.home-assistant.io/)
+[![HA Version](https://img.shields.io/badge/HA-2026.10.0+-green.svg)](https://www.home-assistant.io/)
 [![GitHub License](https://img.shields.io/github/license/hass-cortex/azure-speech-stt)](https://github.com/hass-cortex/azure-speech-stt/blob/main/LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hass-cortex/azure-speech-stt)
 
@@ -30,7 +30,7 @@ Auto-collected entity, device, area, and floor names are sent as `phraseList` hi
 
 ## Getting Started
 
-**Prerequisites:** Home Assistant **2026.3.0+** and an Azure account with a [Speech Services resource](https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices) ([free tier](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services/) -- 5 hours/month).
+**Prerequisites:** Home Assistant **2026.10.0+** and an Azure account with a [Speech Services resource](https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices) ([free tier](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services/) -- 5 hours/month).
 
 ### 1. Install
 
