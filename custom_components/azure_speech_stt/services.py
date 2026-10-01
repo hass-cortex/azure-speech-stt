@@ -8,7 +8,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
-import voluptuous as vol
+import probatio
 from homeassistant.components.stt import (
     AudioBitRates,
     AudioChannels,
@@ -43,13 +43,13 @@ _CODEC_MAP = {
 MAX_AUDIO_SIZE = 10 * 1024 * 1024  # 10 MB
 
 # Service schemas
-SCHEMA_TRANSCRIBE = vol.Schema(
+SCHEMA_TRANSCRIBE = probatio.Schema(
     {
-        vol.Required("entity_id"): str,
-        vol.Required("audio_data"): str,
-        vol.Optional("language", default="en-US"): str,
-        vol.Optional("format", default="wav"): vol.In(["wav", "ogg"]),
-        vol.Optional("codec", default="pcm"): vol.In(["pcm", "opus"]),
+        probatio.Required("entity_id"): str,
+        probatio.Required("audio_data"): str,
+        probatio.Optional("language", default="en-US"): str,
+        probatio.Optional("format", default="wav"): probatio.In(["wav", "ogg"]),
+        probatio.Optional("codec", default="pcm"): probatio.In(["pcm", "opus"]),
     }
 )
 

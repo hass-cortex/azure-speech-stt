@@ -7,7 +7,7 @@ import logging
 from typing import Any
 
 import aiohttp
-import voluptuous as vol
+import probatio
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -54,11 +54,11 @@ _REGION_OPTIONS = {r["value"]: r["label"] for r in AZURE_REGIONS}
 # Schema for user/reconfigure steps (language is selected in Pipeline settings)
 CONF_DISPLAY_NAME = "display_name"
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
+STEP_USER_DATA_SCHEMA = probatio.Schema(
     {
-        vol.Required(CONF_SPEECH_KEY): str,
-        vol.Required(CONF_SPEECH_REGION): vol.In(_REGION_OPTIONS),
-        vol.Optional(CONF_DISPLAY_NAME): str,
+        probatio.Required(CONF_SPEECH_KEY): str,
+        probatio.Required(CONF_SPEECH_REGION): probatio.In(_REGION_OPTIONS),
+        probatio.Optional(CONF_DISPLAY_NAME): str,
     }
 )
 
@@ -132,9 +132,9 @@ class AzureSpeechSTTConfigFlow(ConfigFlow, domain=DOMAIN):  # type: ignore[call-
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema(
+            data_schema=probatio.Schema(
                 {
-                    vol.Required(CONF_SPEECH_KEY): str,
+                    probatio.Required(CONF_SPEECH_KEY): str,
                 }
             ),
             errors=errors,
@@ -281,10 +281,12 @@ class AzureSpeechSTTOptionsFlow(OptionsFlowWithReload):
             },
         }
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
                 # API selection
-                vol.Required(CONF_API_MODES, default=DEFAULT_API_MODES): SelectSelector(
+                probatio.Required(
+                    CONF_API_MODES, default=DEFAULT_API_MODES
+                ): SelectSelector(
                     SelectSelectorConfig(
                         options=[
                             SelectOptionDict(
@@ -300,14 +302,14 @@ class AzureSpeechSTTOptionsFlow(OptionsFlowWithReload):
                     )
                 ),
                 # Enable entity hints toggle
-                vol.Required(
+                probatio.Required(
                     CONF_ENABLE_ENTITY_HINTS, default=DEFAULT_ENABLE_ENTITY_HINTS
                 ): bool,
                 # Auto-collect phrase sources
-                vol.Optional(CONF_SECTION_AUTO_COLLECT): section(
-                    vol.Schema(
+                probatio.Optional(CONF_SECTION_AUTO_COLLECT): section(
+                    probatio.Schema(
                         {
-                            vol.Optional(
+                            probatio.Optional(
                                 CONF_AUTO_COLLECT_SOURCES,
                                 default=DEFAULT_AUTO_COLLECT_SOURCES,
                             ): SelectSelector(
@@ -338,12 +340,12 @@ class AzureSpeechSTTOptionsFlow(OptionsFlowWithReload):
                     {"collapsed": True},
                 ),
                 # Custom phrase hints
-                vol.Optional(CONF_SECTION_PHRASE_HINTS): section(
-                    vol.Schema(
+                probatio.Optional(CONF_SECTION_PHRASE_HINTS): section(
+                    probatio.Schema(
                         {
-                            vol.Optional(CONF_CUSTOM_PHRASES, default=[]): TextSelector(
-                                TextSelectorConfig(multiple=True)
-                            ),
+                            probatio.Optional(
+                                CONF_CUSTOM_PHRASES, default=[]
+                            ): TextSelector(TextSelectorConfig(multiple=True)),
                         }
                     ),
                     {"collapsed": True},

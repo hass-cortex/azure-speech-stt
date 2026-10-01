@@ -6,8 +6,8 @@ import base64
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import probatio
 import pytest
-import voluptuous as vol
 
 ENTITY_ID = "stt.azure_stt_test"
 
@@ -195,13 +195,13 @@ class TestRegisterServices:
 
 
 class TestSchemaValidation:
-    """Test voluptuous schema validation on service inputs."""
+    """Test probatio schema validation on service inputs."""
 
     def test_transcribe_invalid_language_type(self):
         """Non-string language should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TRANSCRIBE(
                 {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "language": 12345}
             )
@@ -210,7 +210,7 @@ class TestSchemaValidation:
         """Invalid audio format should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TRANSCRIBE(
                 {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "format": "mp3"}
             )
@@ -219,7 +219,7 @@ class TestSchemaValidation:
         """Invalid audio codec should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TRANSCRIBE(
                 {"entity_id": ENTITY_ID, "audio_data": "dGVzdA==", "codec": "aac"}
             )
@@ -228,14 +228,14 @@ class TestSchemaValidation:
         """Missing audio_data should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TRANSCRIBE({"entity_id": ENTITY_ID, "language": "en-US"})
 
     def test_transcribe_missing_entity_id(self):
         """Missing entity_id should be rejected by schema."""
         from custom_components.azure_speech_stt.services import SCHEMA_TRANSCRIBE
 
-        with pytest.raises(vol.MultipleInvalid):
+        with pytest.raises(probatio.MultipleInvalid):
             SCHEMA_TRANSCRIBE({"audio_data": "dGVzdA==", "language": "en-US"})
 
 
