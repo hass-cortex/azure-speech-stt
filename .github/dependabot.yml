@@ -20,14 +20,14 @@ updates:
         exclude-patterns:
           - "pytest*"
           - "aioresponses"
-          - "voluptuous"
+          - "probatio"
         update-types: ["minor", "patch"]
       # Test dependencies
       test-deps:
         patterns:
           - "pytest*"
           - "aioresponses"
-          - "voluptuous"
+          - "probatio"
         update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
