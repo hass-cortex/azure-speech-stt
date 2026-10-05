@@ -128,11 +128,3 @@ This bypasses the HACS UI version selector and instructs HACS to pull the specif
 | [Sensors](docs/sensors.md) | Sensor entities for usage tracking and monitoring |
 | [Services](docs/services.md) | Transcribe service with parameters and examples |
 | [Azure API Reference](docs/azure-api-reference.md) | API modes, supported regions, and supported languages |
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
-
-## License
-
-[MIT](LICENSE)
