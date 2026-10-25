@@ -461,3 +461,68 @@ class TestPermanentApiError:
         err = PermanentApiError(401)
         assert err.status == 401
         assert "HTTP 401" in str(err)
+
+
+class TestQuotaExceeded:
+    """Test detection of an exhausted Azure quota."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status", "body", "language", "api"),
+        [
+            (400, "Quota exceeded. Cid: abc", "zh-TW", "realtime"),
+            (
+                403,
+                "Out of call volume quota for FreeTier.",
+                "en-US",
+                "fast_transcription",
+            ),
+        ],
+    )
+    async def test_quota_body_raises_without_retry(self, status, body, language, api):
+        """A body naming the quota should raise QuotaExceededError, not retry."""
+        from custom_components.azure_speech_stt.azure_client import QuotaExceededError
+
+        post_cm, _ = _mock_response(status=status, text=body)
+        session = AsyncMock()
+        session.post = MagicMock(return_value=post_cm)
+        client = _make_client(session)
+
+        with pytest.raises(QuotaExceededError) as exc_info:
+            await client.transcribe(b"audio", language, [])
+
+        assert exc_info.value.api == api
+        assert "Cid" not in exc_info.value.message
+        session.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_auth_quota_body_is_not_exposed(self):
+        """A 401/403 body must not reach the message, even when it names quota."""
+        from custom_components.azure_speech_stt.azure_client import QuotaExceededError
+
+        post_cm, _ = _mock_response(
+            status=403, text="Out of call volume quota for FreeTier."
+        )
+        session = AsyncMock()
+        session.post = MagicMock(return_value=post_cm)
+        client = _make_client(session)
+
+        with pytest.raises(QuotaExceededError) as exc_info:
+            await client.transcribe(b"audio", "en-US", [])
+
+        assert "FreeTier" not in exc_info.value.message
+
+    @pytest.mark.asyncio
+    async def test_throttling_body_naming_quota_is_retried(self):
+        """A 429 whose body mentions quota is throttling and should be retried."""
+        post_cm, _ = _mock_response(
+            status=429, text="Exceeded call rate limit of your current quota."
+        )
+        session = AsyncMock()
+        session.post = MagicMock(return_value=post_cm)
+        client = _make_client(session)
+
+        result, _ = await client.transcribe(b"audio", "en-US", [])
+
+        assert result is None
+        assert session.post.call_count == 2

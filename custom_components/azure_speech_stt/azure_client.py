@@ -40,6 +40,16 @@ class PermanentApiError(Exception):
         self.status = status
 
 
+class QuotaExceededError(Exception):
+    """Azure refused the request because the resource has used up its quota."""
+
+    def __init__(self, status: int, message: str, api: str) -> None:
+        super().__init__(f"HTTP {status}: {message}")
+        self.status = status
+        self.message = message
+        self.api = api
+
+
 class AzureSTTClient:
     """HTTP client for Azure Speech-to-Text APIs.
 
@@ -86,6 +96,10 @@ class AzureSTTClient:
         Returns:
             Tuple of (transcribed text or None on error, api_used string).
             Text is empty string if no speech detected.
+
+        Raises:
+            QuotaExceededError: When Azure reports the quota is used up; this
+                is not retried.
         """
         apis = allowed_apis or DEFAULT_API_MODES
 
@@ -152,7 +166,8 @@ class AzureSTTClient:
             Transcribed text, empty string if no speech, or None on transient error.
 
         Raises:
-            PermanentApiError: On non-retryable HTTP errors (401, 400, 403).
+            QuotaExceededError: When Azure reports the quota is used up.
+            PermanentApiError: On other non-retryable HTTP errors (401, 400, 403).
         """
         url = FAST_TRANSCRIPTION_ENDPOINT.format(region=self._region)
 
@@ -181,17 +196,9 @@ class AzureSTTClient:
                     if combined:
                         return combined[0].get("text", "")
                     return ""
-                if resp.status in (401, 403):
-                    _LOGGER.error(
-                        "Azure STT authentication error (HTTP %d)", resp.status
-                    )
-                else:
-                    body = await resp.text()
-                    _LOGGER.error("Azure STT error %d: %.200s", resp.status, body)
-                if resp.status in _RETRYABLE_STATUS_CODES:
-                    return None
-                raise PermanentApiError(resp.status)
-        except PermanentApiError:
+                await self._handle_error_response(resp, API_MODE_FAST)
+                return None
+        except PermanentApiError, QuotaExceededError:
             raise
         except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.error("Azure STT connection error: %s", err)
@@ -212,7 +219,8 @@ class AzureSTTClient:
             Transcribed text, empty string if no speech, or None on transient error.
 
         Raises:
-            PermanentApiError: On non-retryable HTTP errors (401, 400, 403).
+            QuotaExceededError: When Azure reports the quota is used up.
+            PermanentApiError: On other non-retryable HTTP errors (401, 400, 403).
         """
         url = REALTIME_STT_ENDPOINT.format(
             region=self._region,
@@ -237,21 +245,44 @@ class AzureSTTClient:
                     if data.get("RecognitionStatus") == "Success":
                         return data.get("DisplayText", "")
                     return ""
-                if resp.status in (401, 403):
-                    _LOGGER.error(
-                        "Azure STT authentication error (HTTP %d)", resp.status
-                    )
-                else:
-                    body = await resp.text()
-                    _LOGGER.error("Azure STT error %d: %.200s", resp.status, body)
-                if resp.status in _RETRYABLE_STATUS_CODES:
-                    return None
-                raise PermanentApiError(resp.status)
-        except PermanentApiError:
+                await self._handle_error_response(resp, API_MODE_REALTIME)
+                return None
+        except PermanentApiError, QuotaExceededError:
             raise
         except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.error("Azure STT connection error: %s", err)
             return None
+
+    @staticmethod
+    async def _handle_error_response(resp: aiohttp.ClientResponse, api: str) -> None:
+        """Log a non-200 response and raise unless it is worth retrying.
+
+        Args:
+            resp: The failed Azure response.
+            api: API mode that made the request.
+
+        Raises:
+            QuotaExceededError: When Azure reports the quota is used up.
+            PermanentApiError: On other non-retryable HTTP errors.
+        """
+        body = await resp.text()
+        auth_error = resp.status in (401, 403)
+        # The status for an exhausted quota varies; the body names it
+        if resp.status not in _RETRYABLE_STATUS_CODES and "quota" in body.lower():
+            # Auth error bodies are never logged
+            message = (
+                "response body not logged"
+                if auth_error
+                else body.split(" Cid:", 1)[0].strip()[:200]
+            )
+            raise QuotaExceededError(resp.status, message, api)
+        if auth_error:
+            _LOGGER.error("Azure STT authentication error (HTTP %d)", resp.status)
+        else:
+            _LOGGER.error("Azure STT error %d: %.200s", resp.status, body)
+        if resp.status in _RETRYABLE_STATUS_CODES:
+            return
+        raise PermanentApiError(resp.status)
 
     @staticmethod
     def wrap_pcm_as_wav(pcm_data: bytes) -> bytes:

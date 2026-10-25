@@ -24,8 +24,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .azure_client import AzureSTTClient
+from .azure_client import AzureSTTClient, QuotaExceededError
 from .const import (
+    API_MODE_FAST,
     CONF_API_MODES,
     CONF_AUTO_COLLECT_SOURCES,
     CONF_CUSTOM_PHRASES,
@@ -258,9 +259,19 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
 
         audio_seconds = len(audio_data) / _PCM_BYTES_PER_SECOND
         t0 = time.monotonic()
-        raw_text, api_used = await self._client.transcribe(
-            audio_data, metadata.language, phrases, allowed_apis=api_modes
-        )
+        try:
+            raw_text, api_used = await self._client.transcribe(
+                audio_data, metadata.language, phrases, allowed_apis=api_modes
+            )
+        except QuotaExceededError as err:
+            _LOGGER.error(
+                "Azure Speech quota used up for region %s (%s API, HTTP %d: %s)",
+                self._config_entry.data[CONF_SPEECH_REGION],
+                "Fast Transcription" if err.api == API_MODE_FAST else "Real-time",
+                err.status,
+                err.message,
+            )
+            raw_text, api_used = None, err.api
         elapsed_ms = (time.monotonic() - t0) * 1000
 
         if api_used:

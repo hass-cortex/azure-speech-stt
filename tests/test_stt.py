@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -861,3 +862,28 @@ class TestAvailabilityTracking:
         )
         assert entity._consecutive_failures == 0
         assert entity._attr_available is True
+
+
+class TestQuotaExceeded:
+    """Test handling of an exhausted Azure quota."""
+
+    @pytest.mark.asyncio
+    async def test_quota_response_logs_clear_error(self, mock_hass, caplog):
+        """An exhausted quota should fail once, without retry, with a clear log."""
+        entry = _make_config_entry(options={"enable_entity_hints": False})
+        quota_cm, _ = _mock_aiohttp_response(
+            status=400, text="Quota exceeded. Cid: 1234"
+        )
+        mock_session = _make_mock_session(quota_cm)
+        entity = _create_entity_with_session(mock_hass, entry, mock_session)
+
+        with caplog.at_level(logging.ERROR):
+            result = await entity.async_process_audio_stream(
+                MagicMock(language="zh-TW"), _audio_stream([b"fake-audio-data"])
+            )
+
+        assert result.result == "error"
+        assert entity._consecutive_failures == 1
+        mock_session.post.assert_called_once()
+        assert "quota used up for region japaneast" in caplog.text
+        assert "Real-time API" in caplog.text
