@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/hass-cortex/azure-speech-stt/issues",
   "quality_scale": "platinum",
   "requirements": [],
-  "version": "0.2.2"
+  "version": "0.3.0"
 }
