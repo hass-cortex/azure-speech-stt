@@ -30,24 +30,60 @@ API_MODE_FAST = "fast_transcription"
 API_MODE_REALTIME = "realtime"
 DEFAULT_API_MODES: list[str] = [API_MODE_FAST, API_MODE_REALTIME]
 
-# Azure regions
+# Azure regions that offer the Speech service
+# Source: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions
 AZURE_REGIONS: list[dict[str, str]] = [
+    {"value": "australiaeast", "label": "Australia East"},
+    {"value": "brazilsouth", "label": "Brazil South"},
+    {"value": "canadacentral", "label": "Canada Central"},
+    {"value": "canadaeast", "label": "Canada East"},
+    {"value": "centralindia", "label": "Central India"},
+    {"value": "centralus", "label": "Central US"},
     {"value": "eastasia", "label": "East Asia"},
-    {"value": "southeastasia", "label": "Southeast Asia"},
     {"value": "eastus", "label": "East US"},
     {"value": "eastus2", "label": "East US 2"},
-    {"value": "westus", "label": "West US"},
-    {"value": "westus2", "label": "West US 2"},
-    {"value": "centralus", "label": "Central US"},
-    {"value": "northeurope", "label": "North Europe"},
-    {"value": "westeurope", "label": "West Europe"},
+    {"value": "francecentral", "label": "France Central"},
+    {"value": "germanywestcentral", "label": "Germany West Central"},
+    {"value": "italynorth", "label": "Italy North"},
     {"value": "japaneast", "label": "Japan East"},
     {"value": "japanwest", "label": "Japan West"},
     {"value": "koreacentral", "label": "Korea Central"},
-    {"value": "australiaeast", "label": "Australia East"},
-    {"value": "canadacentral", "label": "Canada Central"},
+    {"value": "northcentralus", "label": "North Central US"},
+    {"value": "northeurope", "label": "North Europe"},
+    {"value": "norwayeast", "label": "Norway East"},
+    {"value": "qatarcentral", "label": "Qatar Central"},
+    {"value": "southafricanorth", "label": "South Africa North"},
+    {"value": "southcentralus", "label": "South Central US"},
+    {"value": "southeastasia", "label": "Southeast Asia"},
+    {"value": "swedencentral", "label": "Sweden Central"},
+    {"value": "switzerlandnorth", "label": "Switzerland North"},
+    {"value": "switzerlandwest", "label": "Switzerland West"},
+    {"value": "uaenorth", "label": "UAE North"},
     {"value": "uksouth", "label": "UK South"},
+    {"value": "ukwest", "label": "UK West"},
+    {"value": "westcentralus", "label": "West Central US"},
+    {"value": "westeurope", "label": "West Europe"},
+    {"value": "westus", "label": "West US"},
+    {"value": "westus2", "label": "West US 2"},
+    {"value": "westus3", "label": "West US 3"},
 ]
+
+# Regions that offer Real-time but not Fast Transcription; requests there go to
+# the Real-time API.
+# Source: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=stt
+FAST_TRANSCRIPTION_UNSUPPORTED_REGIONS: set[str] = {
+    "canadaeast",
+    "centralus",
+    "eastasia",
+    "norwayeast",
+    "qatarcentral",
+    "southafricanorth",
+    "switzerlandnorth",
+    "switzerlandwest",
+    "uaenorth",
+    "ukwest",
+    "westcentralus",
+}
 
 # All supported locales (Fast Transcription + Real-time API).
 # Locales in REALTIME_ONLY_LOCALES are routed to the Real-time REST API.

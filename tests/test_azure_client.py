@@ -36,10 +36,12 @@ def _mock_response(
     return mock_cm, mock_resp
 
 
-def _make_client(session: AsyncMock | None = None) -> AzureSTTClient:
+def _make_client(
+    session: AsyncMock | None = None, region: str = "japaneast"
+) -> AzureSTTClient:
     """Create an AzureSTTClient with a mock session."""
     return AzureSTTClient(
-        region="eastasia",
+        region=region,
         api_key="test-key",
         session=session or AsyncMock(),
     )
@@ -71,7 +73,7 @@ class TestTranscribeFast:
         # Verify URL and headers
         call_kwargs = session.post.call_args
         url = call_kwargs.args[0]
-        assert "eastasia" in url
+        assert "japaneast" in url
         assert "speechtotext/transcriptions:transcribe" in url
         headers = call_kwargs.kwargs.get("headers", {})
         assert headers["Ocp-Apim-Subscription-Key"] == "test-key"
@@ -349,6 +351,38 @@ class TestApiRouting:
             "zh-TW",
             [],
             allowed_apis=["fast_transcription"],
+        )
+
+        assert result is None
+        assert api_used == ""
+        session.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_region_without_fast_uses_realtime(self):
+        """A region without Fast Transcription should route to Real-time."""
+        post_cm, _ = _mock_response(
+            status=200,
+            json_data={"RecognitionStatus": "Success", "DisplayText": "hello"},
+        )
+        session = AsyncMock()
+        session.post = MagicMock(return_value=post_cm)
+        client = _make_client(session, region="eastasia")
+
+        result, api_used = await client.transcribe(b"audio", "en-US", ["hello"])
+
+        assert result == "hello"
+        assert api_used == "realtime"
+        url = session.post.call_args.args[0]
+        assert url.startswith("https://eastasia.stt.speech.microsoft.com/")
+
+    @pytest.mark.asyncio
+    async def test_only_fast_in_region_without_fast_returns_none(self):
+        """Only fast allowed in a region without it should skip the request."""
+        session = AsyncMock()
+        client = _make_client(session, region="eastasia")
+
+        result, api_used = await client.transcribe(
+            b"audio", "en-US", [], allowed_apis=["fast_transcription"]
         )
 
         assert result is None

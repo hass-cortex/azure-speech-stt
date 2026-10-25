@@ -20,7 +20,7 @@ def _make_config_entry(
     entry.entry_id = entry_id
     entry.data = data or {
         "speech_key": "test-key",
-        "speech_region": "eastasia",
+        "speech_region": "japaneast",
     }
     entry.options = options or {}
     entry.runtime_data = AzureSTTRuntimeData()
@@ -527,7 +527,7 @@ class TestAsyncProcessAudioStream:
             if call_kwargs.args
             else call_kwargs.kwargs.get("url", "")
         )
-        assert "eastasia" in url
+        assert "japaneast" in url
         assert "speechtotext/transcriptions:transcribe" in url
 
         # Verify the API key header

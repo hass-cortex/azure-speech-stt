@@ -9,9 +9,9 @@ The integration supports two Azure Speech APIs. Users can select which APIs to e
 | **Fast Transcription API** (v2025-10-15) | Most locales | Supported | 2 hours / 300 MB |
 | **Real-time API** | Select locales | Not supported | Short audio |
 
-**Default behavior** (both APIs enabled): Fast Transcription API is preferred. Locales not supported by Fast Transcription API (e.g., `zh-TW`, `el-GR`, `fr-CA`, and others) are automatically routed to the Real-time API. See `REALTIME_ONLY_LOCALES` in `const.py` for the full list.
+**Default behavior** (both APIs enabled): Fast Transcription API is preferred. Locales not supported by Fast Transcription API (e.g., `zh-TW`, `el-GR`, `fr-CA`, and others) and regions without it (see [Supported Regions](#supported-regions)) are automatically routed to the Real-time API. See `REALTIME_ONLY_LOCALES` and `FAST_TRANSCRIPTION_UNSUPPORTED_REGIONS` in `const.py`.
 
-**Single API mode**: When only one API is enabled, only that API is used. If a locale is not supported by the enabled API (e.g., enabling only Fast Transcription API with a Real-time-only locale), transcription is skipped with a warning.
+**Single API mode**: When only one API is enabled, only that API is used. If the locale or region is not supported by the enabled API (e.g., enabling only Fast Transcription API with a Real-time-only locale or region), transcription is skipped with a warning.
 
 ## Supported Audio Formats
 
@@ -25,23 +25,43 @@ The integration supports two Azure Speech APIs. Users can select which APIs to e
 
 ## Supported Regions
 
-| Region Code | Region Name |
-|-------------|-------------|
-| `eastasia` | East Asia |
-| `southeastasia` | Southeast Asia |
-| `eastus` | East US |
-| `eastus2` | East US 2 |
-| `westus` | West US |
-| `westus2` | West US 2 |
-| `centralus` | Central US |
-| `northeurope` | North Europe |
-| `westeurope` | West Europe |
-| `japaneast` | Japan East |
-| `japanwest` | Japan West |
-| `koreacentral` | Korea Central |
-| `australiaeast` | Australia East |
-| `canadacentral` | Canada Central |
-| `uksouth` | UK South |
+Every region below offers the Real-time API. Source: [Azure Speech regions](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=stt).
+
+| Region Code | Region Name | Fast Transcription |
+|-------------|-------------|--------------------|
+| `australiaeast` | Australia East | Yes |
+| `brazilsouth` | Brazil South | Yes |
+| `canadacentral` | Canada Central | Yes |
+| `canadaeast` | Canada East | — |
+| `centralindia` | Central India | Yes |
+| `centralus` | Central US | — |
+| `eastasia` | East Asia | — |
+| `eastus` | East US | Yes |
+| `eastus2` | East US 2 | Yes |
+| `francecentral` | France Central | Yes |
+| `germanywestcentral` | Germany West Central | Yes |
+| `italynorth` | Italy North | Yes |
+| `japaneast` | Japan East | Yes |
+| `japanwest` | Japan West | Yes |
+| `koreacentral` | Korea Central | Yes |
+| `northcentralus` | North Central US | Yes |
+| `northeurope` | North Europe | Yes |
+| `norwayeast` | Norway East | — |
+| `qatarcentral` | Qatar Central | — |
+| `southafricanorth` | South Africa North | — |
+| `southcentralus` | South Central US | Yes |
+| `southeastasia` | Southeast Asia | Yes |
+| `swedencentral` | Sweden Central | Yes |
+| `switzerlandnorth` | Switzerland North | — |
+| `switzerlandwest` | Switzerland West | — |
+| `uaenorth` | UAE North | — |
+| `uksouth` | UK South | Yes |
+| `ukwest` | UK West | — |
+| `westcentralus` | West Central US | — |
+| `westeurope` | West Europe | Yes |
+| `westus` | West US | Yes |
+| `westus2` | West US 2 | Yes |
+| `westus3` | West US 3 | Yes |
 
 ## Supported Languages
 

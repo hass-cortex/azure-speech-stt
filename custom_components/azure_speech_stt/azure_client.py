@@ -16,6 +16,7 @@ from .const import (
     API_MODE_REALTIME,
     DEFAULT_API_MODES,
     FAST_TRANSCRIPTION_ENDPOINT,
+    FAST_TRANSCRIPTION_UNSUPPORTED_REGIONS,
     REALTIME_ONLY_LOCALES,
     REALTIME_STT_ENDPOINT,
 )
@@ -44,7 +45,7 @@ class AzureSTTClient:
 
     Supports two Azure endpoints:
     - Fast Transcription API: most locales (supports phraseList hints)
-    - Real-time REST API: locales not supported by Fast Transcription
+    - Real-time REST API: locales or regions without Fast Transcription
 
     Uses a shared aiohttp.ClientSession (provided via constructor) instead
     of creating new sessions per request.
@@ -73,8 +74,8 @@ class AzureSTTClient:
     ) -> tuple[str | None, str]:
         """Transcribe audio using the appropriate Azure API.
 
-        Routes to Fast Transcription or Real-time API based on locale and
-        allowed_apis configuration. Retries once on transient failures.
+        Routes to Fast Transcription or Real-time API based on region, locale
+        and allowed_apis configuration. Retries once on transient failures.
 
         Args:
             audio: Raw PCM audio bytes (16kHz, 16-bit, mono).
@@ -89,14 +90,21 @@ class AzureSTTClient:
         apis = allowed_apis or DEFAULT_API_MODES
 
         # Resolve API choice once, before retry loop
-        if language in REALTIME_ONLY_LOCALES:
+        if self._region in FAST_TRANSCRIPTION_UNSUPPORTED_REGIONS:
+            fast_blocker = f"Region {self._region}"
+        elif language in REALTIME_ONLY_LOCALES:
+            fast_blocker = f"Locale {language}"
+        else:
+            fast_blocker = None
+
+        if fast_blocker is not None:
             if API_MODE_REALTIME in apis:
                 use_realtime = True
             else:
                 _LOGGER.warning(
-                    "Locale %s requires Real-time API but only Fast Transcription "
+                    "%s requires Real-time API but only Fast Transcription "
                     "is enabled. Skipping transcription",
-                    language,
+                    fast_blocker,
                 )
                 return None, ""
         else:
