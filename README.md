@@ -36,7 +36,7 @@ Auto-collected entity, device, area, and floor names are sent as `phraseList` hi
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-cortex&repository=azure-speech-stt&category=integration)
 
-Click the button above, or manually: **HACS** > search "Azure Speech-to-Text" > **Download** > restart HA.
+Click the button above, or manually: **Settings > Marketplace** > search "Azure Speech-to-Text" > **Install** > restart HA.
 
 <details>
 <summary>Manual installation</summary>
@@ -77,7 +77,7 @@ Configure via the integration page > **Configure**:
 
 ### Uninstallation
 
-**Settings > Devices & Services** > Azure Speech-to-Text > three-dot menu > **Delete** > remove `custom_components/azure_speech_stt/` > restart HA.
+**Settings > Devices & Services** > Azure Speech-to-Text > three-dot menu > **Delete** > uninstall from **Settings > Marketplace** (or manually remove `custom_components/azure_speech_stt/`) > restart HA.
 
 ## Debugging
 
@@ -110,7 +110,7 @@ Yes. Add the integration multiple times with different Azure keys, regions, or d
 
 **How do I install the latest development version?**
 
-After the integration is installed via HACS, you can switch to the latest `main` branch using the `update.install` action:
+After the integration is installed via the Marketplace, you can switch to the latest `main` branch using the `update.install` action:
 
 1. Go to **Developer Tools > Actions**
 2. Select the `update.install` action
@@ -119,7 +119,7 @@ After the integration is installed via HACS, you can switch to the latest `main`
 5. Click **Perform Action**
 6. Restart HA
 
-This bypasses the HACS UI version selector and instructs HACS to pull the specified branch or commit directly from GitHub. Development versions may contain breaking changes — to revert, run the same action with a release tag (e.g., `0.2.0`).
+This bypasses the Marketplace UI version selector and instructs the Marketplace to pull the specified branch or commit directly from GitHub. Development versions may contain breaking changes — to revert, run the same action with a release tag (e.g., `0.2.0`).
 
 ## Documentation
 
