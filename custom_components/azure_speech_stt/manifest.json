@@ -1,6 +1,7 @@
 {
   "domain": "azure_speech_stt",
   "name": "Azure Speech-to-Text",
+  "categories": ["ai_voice.speech"],
   "codeowners": ["@parkghost"],
   "config_flow": true,
   "dependencies": [],
