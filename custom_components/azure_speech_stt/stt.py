@@ -19,7 +19,7 @@ from homeassistant.components.stt import (
     SpeechResultState,
     SpeechToTextEntity,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -183,6 +183,15 @@ class AzureSpeechSTTEntity(SpeechToTextEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Stop listening for registry changes."""
         self._phrase_builder.async_stop_listening()
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep the entity in place when its entity_id changes.
+
+        Nothing is keyed on the entity_id: registry listeners are global and
+        the transcribe service matches the live entity_id at call time.
+        """
+        super().async_entity_id_changed(old_entity_id)
 
     def _push_stats(self, stats: TranscriptionStats) -> None:
         """Push transcription statistics to all registered sensor entities."""

@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -221,6 +221,15 @@ class AzureSTTSensor(RestoreSensor):
         runtime_data: AzureSTTRuntimeData = self._config_entry.runtime_data
         with contextlib.suppress(ValueError):
             runtime_data.sensors.remove(self)
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Keep the sensor in place when its entity_id changes.
+
+        Nothing is keyed on the entity_id: the sensor is registered by object
+        in runtime_data.sensors.
+        """
+        super().async_entity_id_changed(old_entity_id)
 
     def handle_transcription(self, stats: TranscriptionStats) -> None:
         """Update sensor value from transcription statistics."""

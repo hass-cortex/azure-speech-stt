@@ -228,6 +228,9 @@ class _MockRestoreSensor:
     async def async_added_to_hass(self):
         pass
 
+    def async_entity_id_changed(self, old_entity_id):
+        pass
+
 
 _ha_components_sensor.RestoreSensor = _MockRestoreSensor
 
@@ -287,7 +290,11 @@ _ha_components_stt.SpeechResultState.ERROR = "error"
 _ha_components_stt.SpeechToTextEntity = type(
     "SpeechToTextEntity",
     (),
-    {"_attr_available": True, "async_write_ha_state": lambda self: None},
+    {
+        "_attr_available": True,
+        "async_write_ha_state": lambda self: None,
+        "async_entity_id_changed": lambda self, old_entity_id: None,
+    },
 )
 
 # Register all mocked modules

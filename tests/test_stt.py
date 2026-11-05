@@ -632,6 +632,27 @@ class TestLifecycle:
         unsub_device.assert_called_once()
         unsub_floor.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_entity_id_change_keeps_entity_reachable(
+        self, stt_entity, mock_hass, mock_config_entry
+    ):
+        """After a rename the service finds the entity by its new entity_id."""
+        from custom_components.azure_speech_stt.services import _find_stt_entity
+
+        unsub = MagicMock()
+        mock_hass.bus.async_listen = MagicMock(return_value=unsub)
+        mock_hass.config_entries.async_entries = MagicMock(
+            return_value=[mock_config_entry]
+        )
+        stt_entity.entity_id = "stt.azure_old"
+        await stt_entity.async_added_to_hass()
+
+        stt_entity.entity_id = "stt.azure_new"
+        stt_entity.async_entity_id_changed("stt.azure_old")
+
+        assert _find_stt_entity(mock_hass, "stt.azure_new") is stt_entity
+        unsub.assert_not_called()
+
 
 class TestRealtimeApiRoute:
     """Test that zh-TW (REALTIME_ONLY_LOCALES) routes through the realtime API."""

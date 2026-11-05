@@ -63,9 +63,8 @@ class TestAsyncSetupEntry:
 
             from custom_components.azure_speech_stt import async_setup_entry
 
-            result = await async_setup_entry(mock_hass, entry)
+            await async_setup_entry(mock_hass, entry)
 
-        assert result is True
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(
             entry, ["stt", "sensor"]
         )
@@ -196,27 +195,27 @@ class TestAsyncUnloadEntry:
 
     @pytest.mark.asyncio
     async def test_async_unload_entry_success(self, mock_hass):
-        """Unload should call async_unload_platforms."""
+        """Unload should unload every platform the entry set up."""
         entry = _make_config_entry()
-        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
+        mock_hass.config_entries.async_unload_platforms_or_raise = AsyncMock()
 
         from custom_components.azure_speech_stt import async_unload_entry
 
-        result = await async_unload_entry(mock_hass, entry)
+        await async_unload_entry(mock_hass, entry)
 
-        assert result is True
-        mock_hass.config_entries.async_unload_platforms.assert_awaited_once_with(
+        mock_hass.config_entries.async_unload_platforms_or_raise.assert_awaited_once_with(
             entry, ["stt", "sensor"]
         )
 
     @pytest.mark.asyncio
-    async def test_async_unload_entry_failure(self, mock_hass):
-        """Unload returning False should propagate."""
+    async def test_async_unload_entry_failure_raises(self, mock_hass):
+        """A platform that fails to unload should fail the entry unload."""
         entry = _make_config_entry()
-        mock_hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
+        mock_hass.config_entries.async_unload_platforms_or_raise = AsyncMock(
+            side_effect=RuntimeError("platform failed to unload")
+        )
 
         from custom_components.azure_speech_stt import async_unload_entry
 
-        result = await async_unload_entry(mock_hass, entry)
-
-        assert result is False
+        with pytest.raises(RuntimeError):
+            await async_unload_entry(mock_hass, entry)

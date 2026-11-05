@@ -236,6 +236,24 @@ class TestAsyncWillRemoveFromHass:
         await sensor.async_will_remove_from_hass()
 
 
+class TestEntityIdChanged:
+    """Test the sensor across an entity_id change."""
+
+    @pytest.mark.asyncio
+    async def test_still_receives_updates_after_rename(self):
+        """A renamed sensor stays registered for pushed statistics."""
+        entry = _make_config_entry()
+        sensor = AzureSTTSensor(entry, _find_description("total_requests"))
+        await sensor.async_added_to_hass()
+
+        sensor.entity_id = "sensor.azure_new"
+        sensor.async_entity_id_changed("sensor.azure_old")
+
+        for registered in entry.runtime_data.sensors:
+            registered.handle_transcription(_make_stats())
+        assert sensor._attr_native_value == 1
+
+
 class TestHandleTranscription:
     """Test each sensor description's update_fn via handle_transcription."""
 
